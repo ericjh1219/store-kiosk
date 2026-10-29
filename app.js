@@ -193,14 +193,15 @@ async function runSession(byTap = false) {
   await speak(T().invite, 1800);
 
   logEvent("play");
-  for (let round = 0; round < 3; round++) {
-    if (!byTap && Date.now() - lastSeen > C.leaveMs) return bye();
+  // 平手重来，直到分出输赢；没认出手 2 次就结束；连续平手 6 次算输（送安慰奖）
+  for (let misses = 0, draws = 0; misses < 2;) {
+    if (!byTap && Date.now() - lastSeen > C.leaveMs * 2) return bye(); // 出拳时手可能挡住脸，放宽一点
     const you = await playRound();
-    if (!you) { await speak(T().noHand, 1800); continue; }
+    if (!you) { misses++; await speak(T().noHand, 1800); continue; }
     const bot = pick(Object.keys(ICON));
     $("botHand").textContent = ICON[bot];
-    if (you === bot) { await speak(T().draw, 1800); continue; }
-    const won = BEATS[you] === bot;
+    if (you === bot && ++draws < 6) { await speak(T().draw, 1800); continue; }
+    const won = you !== bot && BEATS[you] === bot;
     setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
     await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
