@@ -333,10 +333,15 @@ async function takePhoto() {
   $("photoDone").textContent = U().done;
   $("photoShare").classList.remove("hidden");
   say(msg.textContent);
-  await new Promise((resolve) => {
-    const timer = setTimeout(resolve, 40000);
-    $("photoDone").onclick = () => { clearTimeout(timer); resolve(); };
+  await new Promise((resolve) => {     // 上方显示倒数，时间到或点「完成」就关闭
+    let left = 40;
+    const tick = () => { $("photoTimer").textContent = "⏱ " + U().closeIn.replace("{n}", left); };
+    tick();
+    const timer = setInterval(() => { if (--left <= 0) finish(); else tick(); }, 1000);
+    const finish = () => { clearInterval(timer); resolve(); };
+    $("photoDone").onclick = finish;
   });
+  $("photoTimer").textContent = "";
   view.classList.add("hidden");
 }
 

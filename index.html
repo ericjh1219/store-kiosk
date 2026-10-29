@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>门店互动屏</title>
-  <link rel="stylesheet" href="style.css?v=20261029f">
+  <link rel="stylesheet" href="style.css?v=20261029h">
 </head>
 <body>
   <div id="stage">
@@ -53,6 +53,7 @@
 
     <div id="photoAsk" class="hidden"><button id="photoYes"></button><button id="photoNo"></button></div>
     <div id="photo" class="hidden">
+      <div id="photoTimer"></div>
       <div id="photoFrame"><canvas id="photoCanvas"></canvas><div id="photoCount"></div></div>
       <div id="photoShare" class="hidden"><div id="photoQr"></div><p id="photoMsg"></p><button id="photoDone"></button></div>
     </div>
@@ -61,9 +62,9 @@
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261029f"></script>
+  <script src="config.js?v=20261029h"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261029f"></script>
+  <script type="module" src="app.js?v=20261029h"></script>
 </body>
 </html>
