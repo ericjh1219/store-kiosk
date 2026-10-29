@@ -242,8 +242,9 @@ function loop() {
 function onTick() {
   const t = Date.now();
   const left = t - lastSeen > C.leaveMs;
-  if (needLeave && left) { needLeave = false; if (state === "idle") idleHint(); }
-  if (state === "idle" && !needLeave && t > cooldownUntil && hint.textContent === U().again) idleHint();
+  if (needLeave && left) needLeave = false;
+  // 「点我再玩一次」的时间过了（人走了，也过了冷却时间）：换回招呼语，语言回到默认，等下一位顾客
+  if (state === "idle" && !needLeave && t > cooldownUntil && hint.classList.contains("again")) { setLang(S.languages[0]); idleHint(); }
   if (state === "idle" && !needLeave && presentSince && t - presentSince > C.presenceMs && t > cooldownUntil) runSession();
 }
 
@@ -320,15 +321,18 @@ async function bye() {
 }
 
 function toIdle() {
-  state = "idle"; presentSince = 0; syncMusic();
-  setLang(S.languages[0]); // 下一位顾客回到默认语言
+  state = "idle"; presentSince = 0; syncMusic();   // 语言不在这里重设：同一个人再玩一次时还是他选的语言
   setMood(""); playVideo("idle");
   bubble.classList.add("hidden");
   idleHint();
 }
 
-// 刚玩完（人还在，或 20 秒内）显示「点我再玩一次」，否则显示招呼语
-function idleHint() { hint.textContent = needLeave || Date.now() < cooldownUntil ? U().again : T().slogan; }
+// 刚玩完（人还在，或 20 秒内）显示「点我再玩一次」+ 点击手势图标，否则显示招呼语
+function idleHint() {
+  const again = needLeave || Date.now() < cooldownUntil;
+  hint.classList.toggle("again", again);
+  hint.replaceChildren(...(again ? [$("tapIcon").content.cloneNode(true), U().again] : [T().slogan]));
+}
 
 // ---------- 离线奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {
@@ -386,7 +390,7 @@ async function takePhoto() {
   const art = await characterArt();
   cv.width = 960; cv.height = 1280;   // 竖版 3:4
   $("photoShare").classList.add("hidden");
-  view.classList.remove("hidden");
+  view.classList.remove("hidden", "sharing");
 
   let live = true;   // 倒数时实时预览
   (function draw() { if (live) { composePhoto(cv, art, true); requestAnimationFrame(draw); } })();
@@ -408,7 +412,7 @@ async function takePhoto() {
     msg.textContent = U().photoScan;
   } catch (e) { console.warn("photo upload failed", e); msg.textContent = U().photoFail; }
   $("photoDone").textContent = U().done;
-  $("photoShare").classList.remove("hidden");
+  $("photoShare").classList.remove("hidden"); view.classList.add("sharing");
   say(msg.textContent);
   const t = countdown($("photoTimer"), 40);   // 时间到或点「完成」就关闭
   $("photoDone").onclick = t.stop;

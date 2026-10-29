@@ -51,6 +51,12 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
   max-width: 86vw; padding: 1.4vh 4.5vh; border-radius: 5vh; margin-bottom: 8vh; cursor: pointer;
   box-shadow: 0 1vh 3vh #0008, 0 0 0 .5vh #ffffff33; animation: breathe 2.4s ease-in-out infinite; }
 #hint:empty { display: none; }
+#hint.again { display: flex; align-items: center; gap: 1.2vh; }
+#hint .tap { width: 5.2vh; height: 5.2vh; margin: -.6vh 0; flex: none; overflow: visible; }
+#hint .finger { animation: tap 1.4s ease-in-out infinite; }
+#hint .ripple { animation: ripple 1.4s ease-out infinite; transform-origin: 12px 6.6px; }
+@keyframes tap { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(1.6px); } }
+@keyframes ripple { 0%, 25% { opacity: 0; transform: scale(.6); } 40% { opacity: 1; } 100% { opacity: 0; transform: scale(1.35); } }
 @keyframes breathe { 50% { transform: scale(1.06); box-shadow: 0 1vh 3vh #0008, 0 0 0 1.2vh #ffffff22; } }
 /* 全屏素材：视频铺满整个屏幕当背景，店名招牌隐藏（位置还在，连点 5 次仍可开调试），其他内容叠在上面 */
 #stage { isolation: isolate; }
@@ -102,13 +108,17 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 #photo { position: absolute; inset: 0; z-index: 5; background: #000e; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2vh; padding: 3vh 4vw; }
 #photoFrame { position: relative; flex: 0 1 auto; min-height: 0; display: flex; }
-#photoCanvas { max-width: 92vw; max-height: 60vh; border: 0.6vh solid #fff; border-radius: 1vh; box-shadow: 0 2vh 6vh #000; }
+#photoCanvas { max-width: 92vw; max-height: 80vh; border: 0.6vh solid #fff; border-radius: 1vh; box-shadow: 0 2vh 6vh #000; }
 #photoCount { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 22vh; font-weight: 800; color: #fff; text-shadow: 0 0 4vh #000; pointer-events: none; }
 #photo.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .4s forwards; }
 @keyframes flash { to { opacity: 0; } }
-#photoShare { display: flex; flex-direction: column; align-items: center; gap: 1.4vh; text-align: center; }
-#photoQr img { background: #fff; padding: 1vh; border-radius: 1vh; width: 20vh; height: 20vh; image-rendering: pixelated; }
+/* 拍完：照片尽量大，二维码和说明并排放在下面 */
+#photo.sharing #photoCanvas { max-height: 66vh; }
+#photoShare { display: flex; align-items: center; justify-content: center; gap: 3vw; max-width: 92vw; }
+.share-side { display: flex; flex-direction: column; align-items: flex-start; gap: 1.4vh; }
+.share-side #photoTimer { white-space: nowrap; }
+#photoQr img { display: block; background: #fff; padding: 1vh; border-radius: 1vh; width: 24vh; height: 24vh; image-rendering: pixelated; }
 #photoTimer, #timer { flex: none; font-size: 3vh; font-weight: 700;
   color: var(--primary); background: var(--accent); padding: .8vh 3vh; border-radius: 4vh; font-variant-numeric: tabular-nums; }
 #photoTimer:empty, #timer:empty { display: none; }
@@ -116,4 +126,5 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 #timer { position: absolute; top: 2vh; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
   box-shadow: 0 .6vh 2vh #0006; }
 #timer:not(:empty) ~ #sign { visibility: hidden; }
-#photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 80vw; }
+#photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 52vw; }
+#photoQr:empty + .share-side { align-items: center; text-align: center; }

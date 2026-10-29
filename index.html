@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="互动屏">
-  <link rel="stylesheet" href="style.css?v=20261030h">
+  <link rel="stylesheet" href="style.css?v=20261030k">
 </head>
 <body>
   <div id="stage">
@@ -66,18 +66,23 @@
 
     <div id="photoAsk" class="hidden"><button id="photoYes"></button><button id="photoNo"></button></div>
     <div id="photo" class="hidden">
-      <div id="photoTimer"></div>
       <div id="photoFrame"><canvas id="photoCanvas"></canvas><div id="photoCount"></div></div>
-      <div id="photoShare" class="hidden"><div id="photoQr"></div><p id="photoMsg"></p><button id="photoDone"></button></div>
+      <div id="photoShare" class="hidden"><div id="photoQr"></div>
+        <div class="share-side"><div id="photoTimer"></div><p id="photoMsg"></p><button id="photoDone"></button></div></div>
     </div>
 
     <footer id="hint"></footer>
+    <template id="tapIcon"><svg class="tap" viewBox="0 0 24 24" aria-hidden="true">
+      <path class="ripple" d="M7.2 6.6a4.8 4.8 0 0 1 9.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <g class="finger" fill="currentColor"><rect x="10.2" y="5" width="3.6" height="11" rx="1.8"/>
+        <rect x="10.2" y="11" width="8.6" height="10.5" rx="3.2"/>
+        <rect x="6.4" y="13.4" width="4.8" height="3.4" rx="1.7" transform="rotate(35 8.8 15.1)"/></g></svg></template>
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261030h"></script>
+  <script src="config.js?v=20261030k"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261030h"></script>
+  <script type="module" src="app.js?v=20261030k"></script>
 </body>
 </html>
