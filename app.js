@@ -312,12 +312,12 @@ async function takePhoto() {
   view.classList.remove("hidden");
 
   let live = true;   // 倒数时实时预览
-  (function draw() { if (live) { composePhoto(cv, art); requestAnimationFrame(draw); } })();
+  (function draw() { if (live) { composePhoto(cv, art, true); requestAnimationFrame(draw); } })();
   say(U().photoLook); count.textContent = "";
   await sleep(1500);
   for (const n of ["3", "2", "1"]) { count.textContent = n; say(n); await sleep(1000); }
   count.textContent = ""; live = false;
-  composePhoto(cv, art);
+  composePhoto(cv, art, false);   // 存下来的照片不镜像，招牌和衣服上的字才是正的
   view.classList.add("flash"); setTimeout(() => view.classList.remove("flash"), 500);
 
   const msg = $("photoMsg"), qrBox = $("photoQr");
@@ -367,9 +367,10 @@ async function characterArt() {
   return { el, w, h };
 }
 
-function composePhoto(cv, art) {
+function composePhoto(cv, art, mirror) {
   const g = cv.getContext("2d"), W = cv.width, H = cv.height, band = Math.round(H * 0.11);
-  g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(cam, 0, 0, W, H); g.restore();  // 镜像，像照镜子
+  g.save(); if (mirror) { g.translate(W, 0); g.scale(-1, 1); }   // 预览镜像，像照镜子
+  g.drawImage(cam, 0, 0, W, H); g.restore();
   if (art) {
     const ah = H * 0.5, aw = (ah * art.w) / art.h;
     g.drawImage(art.el, W - aw - W * 0.02, H - band - ah, aw, ah);
