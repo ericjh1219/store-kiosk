@@ -64,6 +64,8 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #startBtn { position: absolute; inset: 0; background: #000c; color: #fff; font-size: 4vh; border: 0; }
 .hidden { display: none !important; }
 
+#previewTag { position: absolute; bottom: 1vh; right: 2vw; z-index: 4; pointer-events: none; font-size: 1.8vh;
+  padding: .4vh 1.2vh; border-radius: 2vh; background: #c0392bdd; color: #fff; }
 #debug { position: absolute; right: 1vw; bottom: 1vh; width: 28vw; font-size: 1.4vh; }
 #debug video { width: 100%; transform: scaleX(-1); border: 2px solid #0f0; }
 #debug pre { background: #000a; color: #0f0; white-space: pre-wrap; }

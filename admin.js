@@ -338,7 +338,7 @@ function renderSettings() {
       h("div", { class: "grid2" }, volume("musicVolume", "音乐音量 Music", c.musicVolume ?? 30),
         volume("sfxVolume", "音效音量 Sound effects", c.sfxVolume ?? 80))),
     h("div", { class: "row" }, h("button", { type: "submit" }, "保存 Save"),
-      h("a", { class: "btn ghost", target: "_blank", href: kioskUrl(false) }, "预览互动屏 Preview")),
+      h("a", { class: "btn ghost", target: "_blank", href: kioskUrl(true), title: "先保存，再打开互动屏看效果（不计入数据）" }, "预览互动屏 Preview")),
   );
   syncLangs();
   form.onsubmit = (e) => { e.preventDefault(); saveSettings(c, form, prizeBody); };
@@ -384,10 +384,12 @@ async function saveSettings(base, form, prizeBody) {
 }
 
 // ---------- 设备 ----------
-function kioskUrl(withKey = true) {
+// 设备链接（带密钥）；preview = 后台「预览互动屏」用的，不计入数据、领奖码只是示范
+function kioskUrl(preview = false) {
   const base = new URL("index.html", location.href);
   base.searchParams.set("store", cur.id);
-  if (withKey) base.searchParams.set("key", cur.device_key);
+  base.searchParams.set("key", cur.device_key);
+  if (preview) base.searchParams.set("preview", "1");
   return base.toString();
 }
 function renderDevice() {

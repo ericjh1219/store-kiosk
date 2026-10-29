@@ -100,6 +100,8 @@ try { if (localStorage.getItem("kioskLocked")) setLocked(true); } catch {}
 // ---------- 后端（Supabase） ----------
 const params = new URLSearchParams(location.search);
 const deviceKey = params.get("key") || "";
+const preview = params.get("preview") === "1";   // 后台「预览互动屏」打开的：不计入数据，领奖码只是示范
+if (preview) stage.append(Object.assign(document.createElement("div"), { id: "previewTag", textContent: "预览 Preview · 不计数据、领奖码无效" }));
 const backendOn = !!(C.backend?.url && C.backend?.key);
 
 async function rpc(fn, body) {
@@ -113,7 +115,7 @@ async function rpc(fn, body) {
 }
 
 function logEvent(type) {
-  if (backendOn) rpc("kiosk_event", { p_store: storeId, p_key: deviceKey, p_type: type }).catch(console.warn);
+  if (backendOn && !preview) rpc("kiosk_event", { p_store: storeId, p_key: deviceKey, p_type: type }).catch(console.warn);
 }
 
 function showBlocked(msg) {
@@ -343,7 +345,7 @@ function drawPrize() {
 
 // 有后端：服务器抽奖并生成可核销的领奖码；没后端或断网：本机抽奖，码只作展示
 async function getPrize(won) {
-  if (backendOn) {
+  if (backendOn && !preview) {
     try {
       const r = await rpc("kiosk_prize", { p_store: storeId, p_key: deviceKey, p_won: won });
       return { prize: r.prize, code: r.code };
