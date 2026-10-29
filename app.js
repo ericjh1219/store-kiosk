@@ -10,17 +10,56 @@ const BEATS = { rock: "scissors", scissors: "paper", paper: "rock" };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
+let S;                         // 当前店铺配置（stores/<id>.json）
+let storeId, lang;
 let faceDetector, gestureRecognizer;
 let state = "idle";            // idle | busy | cooldown
 let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
 let gestureVotes = null;       // 出拳窗口内收集手势
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
 
-$("storeName").textContent = C.storeName;
+// ---------- 语言 ----------
+const T = () => S.lines[lang];                      // 店铺台词
+const U = () => C.ui[lang];                         // 界面固定文字
+const tr = (v) => (typeof v === "string" ? v : v[lang] ?? Object.values(v)[0]); // {zh, en} → 当前语言
+
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  $("storeName").textContent = tr(S.storeName);
+  $("youLabel").textContent = U().you;
+  $("meLabel").textContent = U().me;
+  $("claimText").textContent = U().claim;
+  const sb = $("startBtn"); if (sb && !sb.dataset.busy) sb.textContent = U().start;
+  if (state === "idle") hint.textContent = T().slogan;
+  const next = S.languages[(S.languages.indexOf(l) + 1) % S.languages.length];
+  $("langBtn").textContent = next === "zh" ? "中文" : "English";
+  $("langBtn").hidden = S.languages.length < 2;
+}
+$("langBtn").onclick = () => setLang(S.languages[(S.languages.indexOf(lang) + 1) % S.languages.length]);
+
+// ---------- 加载店铺 ----------
+async function loadStore() {
+  storeId = new URLSearchParams(location.search).get("store") || C.defaultStore;
+  try {
+    S = await (await fetch(`stores/${encodeURIComponent(storeId)}.json`, { cache: "no-cache" })).json();
+  } catch {
+    document.body.textContent = `找不到店铺 / Store not found: ${storeId}`;
+    throw new Error("store not found");
+  }
+  S.languages ||= Object.keys(S.lines);
+  for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
+  document.title = tr(S.storeName);
+  applySkin();
+  playVideo("idle");
+  setLang(S.languages[0]);
+}
+await loadStore();
 $("startBtn").onclick = start;
 
 async function start() {
-  $("startBtn").textContent = "加载中…";
+  const sb = $("startBtn");
+  sb.dataset.busy = 1; sb.textContent = U().loading;
   try {
     document.documentElement.requestFullscreen?.().catch(() => {});
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
@@ -32,10 +71,10 @@ async function start() {
     gestureRecognizer = await GestureRecognizer.createFromOptions(fs, {
       baseOptions: { modelAssetPath: C.mediapipe.gesture, delegate: "GPU" }, runningMode: "VIDEO", numHands: 1 });
   } catch (e) {
-    $("startBtn").textContent = "启动失败：" + e.message + "（需 HTTPS + 摄像头权限）";
+    sb.textContent = U().startFail + e.message;
     return;
   }
-  $("startBtn").remove();
+  sb.remove();
   say(""); // 解锁语音
   toIdle();
   requestAnimationFrame(loop);
@@ -63,7 +102,7 @@ function loop() {
       }
     }
     onTick();
-    $("dbgText").textContent = `state=${state}\nfaces=${faces.length} present=${!!presentSince}\ngesture=${g}`;
+    $("dbgText").textContent = `store=${storeId} lang=${lang}\nstate=${state}\nfaces=${faces.length} present=${!!presentSince}\ngesture=${g}`;
   }
   requestAnimationFrame(loop);
 }
@@ -78,22 +117,22 @@ function onTick() {
 async function runSession() {
   state = "busy";
   setMood("wave"); playVideo("wave");
-  await speak(pick(C.lines.welcome), 2200);
+  await speak(pick(T().welcome), 2200);
   setMood("");
-  await speak(C.lines.invite, 1800);
+  await speak(T().invite, 1800);
 
   for (let round = 0; round < 3; round++) {
     if (Date.now() - lastSeen > C.leaveMs) return bye();
     const you = await playRound();
-    if (!you) { await speak(C.lines.noHand, 1800); continue; }
+    if (!you) { await speak(T().noHand, 1800); continue; }
     const bot = pick(Object.keys(ICON));
     $("botHand").textContent = ICON[bot];
-    if (you === bot) { await speak(C.lines.draw, 1800); continue; }
+    if (you === bot) { await speak(T().draw, 1800); continue; }
     const won = BEATS[you] === bot;
     setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
-    await speak(won ? C.lines.win : C.lines.lose, 1800);
+    await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
-    showPrize(won ? drawPrize() : C.consolation);
+    showPrize(won ? drawPrize() : S.consolation);
     await sleep(8000);
     break;
   }
@@ -105,10 +144,10 @@ async function playRound() {
   $("youHand").textContent = $("botHand").textContent = "❔";
   tapMove = null;
   gestureVotes = {}; // 倒数时就开始识别，提示画面会实时显示
-  for (const w of ["石头", "剪刀", "布！"]) {
+  for (const w of U().countdown) {
     $("countdown").textContent = w; say(w); await sleep(800);
   }
-  gestureVotes = {}; // 只统计“布！”之后 0.8 秒的手势
+  gestureVotes = {}; // 只统计最后一拍之后 0.8 秒的手势
   await sleep(800);
   const votes = gestureVotes; gestureVotes = null;
   $("countdown").textContent = "";
@@ -123,7 +162,7 @@ document.querySelectorAll("#tapPick button").forEach((b) =>
 async function bye() {
   $("game").classList.add("hidden"); $("prize").classList.add("hidden");
   setMood(""); playVideo("idle");
-  await speak(C.lines.bye, 1500);
+  await speak(T().bye, 1500);
   bubble.classList.add("hidden");
   cooldownUntil = Date.now() + C.cooldownMs;
   state = "cooldown";
@@ -132,28 +171,30 @@ async function bye() {
 
 function toIdle() {
   state = "idle"; presentSince = 0;
+  setLang(S.languages[0]); // 下一位顾客回到默认语言
   setMood(""); playVideo("idle");
   bubble.classList.add("hidden");
-  hint.textContent = C.slogan;
+  hint.textContent = T().slogan;
 }
 
-// ---------- 奖品（每日库存存在本机） ----------
+// ---------- 奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {
-  const key = "stock-" + new Date().toISOString().slice(0, 10);
+  const key = `stock-${storeId}-${new Date().toISOString().slice(0, 10)}`;
   let used = {};
   try { used = JSON.parse(localStorage.getItem(key)) || {}; } catch {}
-  const pool = C.prizes.filter((p) => p.stock == null || (used[p.name] || 0) < p.stock);
-  if (!pool.length) return C.consolation;
+  const id = (p) => tr(p.name);
+  const pool = S.prizes.filter((p) => p.stock == null || (used[id(p)] || 0) < p.stock);
+  if (!pool.length) return S.consolation;
   let r = Math.random() * pool.reduce((s, p) => s + p.weight, 0);
   const prize = pool.find((p) => (r -= p.weight) < 0) || pool[pool.length - 1];
-  used[prize.name] = (used[prize.name] || 0) + 1;
+  used[id(prize)] = (used[id(prize)] || 0) + 1;
   try { localStorage.setItem(key, JSON.stringify(used)); } catch {}
   return prize;
 }
 
 function showPrize(p) {
   $("prizeEmoji").textContent = p.emoji;
-  $("prizeName").textContent = p.name;
+  $("prizeName").textContent = tr(p.name);
   const d = new Date();
   $("prizeCode").textContent = `${d.getMonth() + 1}${d.getDate()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   $("prize").classList.remove("hidden");
@@ -162,19 +203,29 @@ function showPrize(p) {
 // ---------- 角色表现 ----------
 function setMood(m) { stage.classList.remove("wave", "happy", "sad"); if (m) stage.classList.add(m); }
 
+// 角色素材：mp4/webm 用 <video>，gif/webp/png 动图用 <img>；都没填就用内置卡通角色
 function playVideo(name) {
-  const src = C.videos[name] || C.videos.idle;
-  const v = $("charVideo");
+  const media = S.character?.media || {};
+  const src = media[name] || media.idle;
+  const v = $("charVideo"), img = $("charImg");
   if (!src) return;
-  $("mascot").style.display = "none"; v.hidden = false;
-  if (!v.src.endsWith(src)) { v.src = src; v.play().catch(() => {}); }
+  const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
+  $("mascot").style.display = "none";
+  v.hidden = !isVideo; img.hidden = isVideo;
+  if (isVideo) { if (!v.src.endsWith(src)) { v.src = src; v.play().catch(() => {}); } }
+  else if (!img.src.endsWith(src)) img.src = src;
+}
+
+function applySkin() {
+  const map = { outfit: "--outfit", outfitDark: "--outfit-dark", hair: "--hair", skin: "--skin" };
+  for (const [k, v] of Object.entries(S.character?.skin || {})) if (map[k]) $("mascot").style.setProperty(map[k], v);
 }
 
 function say(text) {
   if (!("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = "zh-CN"; u.rate = 1.05; u.pitch = 1.2;
+  u.lang = (S.tts || C.tts)[lang]; u.rate = 1.05; u.pitch = 1.2;
   speechSynthesis.speak(u);
 }
 

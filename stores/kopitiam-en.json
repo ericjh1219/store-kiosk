@@ -1,0 +1,30 @@
+{
+  "storeName": { "en": "Sunny Kopitiam" },
+  "languages": ["en"],
+
+  "lines": {
+    "en": {
+      "slogan": "Come say hi! Play Rock Paper Scissors for a treat!",
+      "welcome": ["Selamat datang to Sunny Kopitiam!", "Hello boss, come in lah!", "Hi! Kopi or teh today?"],
+      "invite": "Raise your hand, beat me and win a gift!",
+      "win": "Wah, you win!",
+      "lose": "Haha, I win! Never mind, here's a small gift.",
+      "draw": "Same same! One more time!",
+      "noHand": "Cannot see your hand leh, try again!",
+      "bye": "Thank you, come again!"
+    }
+  },
+
+  "prizes": [
+    { "name": { "en": "Free Kopi O" }, "weight": 2, "stock": 20, "emoji": "☕" },
+    { "name": { "en": "Free Kaya Toast" }, "weight": 1, "stock": 10, "emoji": "🍞" },
+    { "name": { "en": "RM2 Off Next Visit" }, "weight": 5, "stock": null, "emoji": "🎁" }
+  ],
+  "consolation": { "name": { "en": "5% Off Coupon" }, "emoji": "🎟️" },
+
+  "theme": { "primary": "#0f3d2e", "accent": "#ffd23f", "bg": "#1f6b4f" },
+  "character": {
+    "skin": { "outfit": "#2e9e6b", "outfitDark": "#1f6b4f", "hair": "#3b2a1a", "skin": "#e8b98a" },
+    "media": { "idle": "", "wave": "", "happy": "", "sad": "" }
+  }
+}
