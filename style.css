@@ -1,0 +1,58 @@
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
+  font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+
+#stage { position: relative; height: 100vh; width: 100vw; display: flex; flex-direction: column;
+  align-items: center; justify-content: space-between; padding: 4vh 4vw;
+  background: radial-gradient(ellipse at 50% 40%, #6b2d1e 0%, #2a1209 70%); }
+
+#sign { border: 0.6vh solid #c9a35b; padding: 1vh 6vw; border-radius: 1vh;
+  font-size: 5vh; letter-spacing: 1vh; color: #f5d68a; background: #4a160f; }
+
+#character { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+#mascot, #charVideo { height: 100%; max-height: 55vh; max-width: 90vw; }
+#charVideo { object-fit: contain; }
+#mascot .body { animation: bob 2.4s ease-in-out infinite; transform-origin: 100px 230px; }
+#mascot .eyes { animation: blink 4s infinite; transform-origin: 100px 112px; }
+#mascot .arm-right { transform-origin: 128px 192px; transition: transform .3s; }
+#stage.wave #mascot .arm-right { animation: wave .5s ease-in-out infinite alternate; }
+#stage.happy #mascot .body { animation: jump .5s ease-in-out infinite; }
+#stage.sad #mascot .mouth { d: path("M84 150 Q100 136 116 150"); }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+@keyframes jump { 50% { transform: translateY(-20px); } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+@keyframes wave { from { transform: rotate(-20deg); } to { transform: rotate(-70deg); } }
+
+#bubble { position: absolute; top: 13vh; left: 50%; transform: translateX(-50%); width: max-content; max-width: 88vw; z-index: 2;
+  background: #fff8e7; color: #4a160f; font-size: 3.6vh; padding: 1.6vh 3vh; border-radius: 3vh;
+  box-shadow: 0 1vh 3vh #0006; text-align: center; animation: pop .3s; }
+@keyframes pop { from { transform: translateX(-50%) scale(.6); opacity: 0; } }
+
+#game { text-align: center; }
+#countdown { font-size: 14vh; font-weight: 800; color: #f5d68a; height: 16vh; line-height: 16vh; }
+#hands { display: flex; gap: 6vw; align-items: center; justify-content: center; font-size: 10vh; }
+#hands small { display: block; font-size: 2.4vh; color: #f5d68a; }
+#hands b { font-size: 4vh; color: #f5d68a; }
+#tapPick { margin-top: 2vh; display: flex; gap: 3vw; justify-content: center; }
+#tapPick button { font-size: 6vh; background: #ffffff22; border: 2px solid #f5d68a; border-radius: 2vh;
+  padding: 1vh 3vw; color: #fff; }
+
+#prize { position: absolute; inset: 20vh 8vw auto; z-index: 3; background: #fff8e7; color: #4a160f; border-radius: 3vh;
+  padding: 4vh; text-align: center; box-shadow: 0 0 0 1vh #c9a35b, 0 2vh 6vh #000a; animation: pop2 .5s; }
+@keyframes pop2 { from { transform: scale(.3) rotate(-10deg); opacity: 0; } }
+#prizeEmoji { font-size: 14vh; }
+#prize small { display: block; font-size: 2vh; }
+#prizeName { font-size: 4.5vh; font-weight: 800; margin: 1vh 0; }
+#prizeCode { font-size: 3vh; letter-spacing: .5vh; background: #4a160f; color: #f5d68a; display: inline-block;
+  padding: .6vh 2vh; border-radius: 1vh; margin-bottom: 1vh; }
+
+#hint { font-size: 2.8vh; color: #f5d68a; text-align: center; min-height: 4vh; }
+#startBtn { position: absolute; inset: 0; background: #000c; color: #fff; font-size: 4vh; border: 0; }
+.hidden { display: none !important; }
+
+#debug { position: absolute; right: 1vw; bottom: 1vh; width: 28vw; font-size: 1.4vh; }
+#debug video { width: 100%; transform: scaleX(-1); border: 2px solid #0f0; }
+#debug pre { background: #000a; color: #0f0; white-space: pre-wrap; }
+/* 摄像头不显示时仍需在 DOM 中播放 */
+#cam { display: block; }
+#debug.hidden { display: block !important; opacity: 0; pointer-events: none; width: 2px; }

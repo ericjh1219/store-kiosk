@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>门店互动屏</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage">
+    <header id="sign"><span id="storeName"></span></header>
+
+    <div id="character">
+      <video id="charVideo" playsinline muted loop hidden></video>
+      <svg id="mascot" viewBox="0 0 200 260" aria-hidden="true">
+        <g class="body">
+          <ellipse cx="100" cy="215" rx="58" ry="40" fill="#c0392b"/>
+          <rect x="70" y="180" width="60" height="60" rx="14" fill="#e74c3c"/>
+          <g class="arm-left"><rect x="40" y="185" width="34" height="14" rx="7" fill="#e74c3c"/></g>
+          <g class="arm-right"><rect x="126" y="185" width="34" height="14" rx="7" fill="#e74c3c"/>
+            <circle cx="163" cy="192" r="10" fill="#ffe0bd"/></g>
+          <circle cx="100" cy="110" r="72" fill="#ffe0bd"/>
+          <path d="M28 100 Q30 30 100 32 Q170 30 172 100 Q150 60 100 62 Q50 60 28 100Z" fill="#2c2c2c"/>
+          <circle cx="100" cy="34" r="18" fill="#2c2c2c"/>
+          <g class="eyes"><ellipse cx="74" cy="112" rx="8" ry="10" fill="#222"/>
+            <ellipse cx="126" cy="112" rx="8" ry="10" fill="#222"/></g>
+          <circle cx="60" cy="135" r="9" fill="#ffb3b3" opacity=".7"/>
+          <circle cx="140" cy="135" r="9" fill="#ffb3b3" opacity=".7"/>
+          <path class="mouth" d="M84 140 Q100 156 116 140" stroke="#a33" stroke-width="5" fill="none" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <div id="bubble" class="hidden"></div>
+
+    <div id="game" class="hidden">
+      <div id="countdown"></div>
+      <div id="hands"><div><small>你</small><span id="youHand">❔</span></div>
+        <b>VS</b><div><small>我</small><span id="botHand">❔</span></div></div>
+      <div id="tapPick">
+        <button data-move="rock">✊</button><button data-move="scissors">✌️</button><button data-move="paper">✋</button>
+      </div>
+    </div>
+
+    <div id="prize" class="hidden">
+      <div id="prizeEmoji"></div>
+      <div id="prizeName"></div>
+      <div id="prizeCode"></div>
+      <small>请截图或出示此画面给店员领取</small>
+    </div>
+
+    <footer id="hint"></footer>
+    <button id="startBtn">点击启动互动屏</button>
+    <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
+  </div>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
