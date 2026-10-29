@@ -311,7 +311,10 @@ function renderSettings() {
       h("label", {}, "语言 Languages", langSel),
       h("label", {}, "领奖码有效天数 Code valid days", inp("codeValidDays", c.codeValidDays ?? 7, { type: "number", min: 1, max: 365 })),
       h("label", { class: "inline" }, h("input", { type: "checkbox", name: "photo", checked: c.photo !== false }),
-        "玩完后可以和角色合照（扫码下载，24 小时后删除）Photo with character"))),
+        "玩完后可以和角色合照（扫码下载，24 小时后删除）Photo with character"),
+      h("p", { class: "hint" }, cur.ai_photo
+        ? `✨ AI 卡通合照：已开通（每日最多 ${cur.ai_photo_daily} 张）`
+        : "✨ AI 卡通合照：未开通（加购配套，请联系我们）"))),
     ...lineSets,
     h("fieldset", {}, h("legend", {}, "奖品 Prizes（赢了按权重抽；每日库存留空 = 不限）"),
       h("div", { class: "table-wrap" }, h("table", {},
@@ -440,16 +443,27 @@ $("staffForm").addEventListener("submit", async (e) => {
 function renderPlatform() {
   const today = new Date().toISOString().slice(0, 10);
   $("allStores").replaceChildren(h("table", {},
-    h("tr", {}, ["ID", "店名 Name", "状态 Status", "到期 Until", ""].map((t) => h("th", {}, t))),
+    h("tr", {}, ["ID", "店名 Name", "状态 Status", "到期 Until", "AI 合照", ""].map((t) => h("th", {}, t))),
     stores.map((s) => {
       const expired = s.rental_until && s.rental_until < today;
       const status = !s.active ? ["bad", "停用 Off"] : expired ? ["bad", "已到期 Expired"] : ["ok", "运行中 On"];
       return h("tr", {}, h("td", {}, s.id), h("td", {}, tr(s.config.storeName)),
         h("td", {}, h("span", { class: "tag " + status[0] }, status[1])), h("td", {}, s.rental_until || "—"),
+        h("td", {}, s.ai_photo ? h("span", { class: "tag ok" }, `✨ ${s.ai_photo_daily}/天`) : "—"),
         h("td", {}, h("button", { class: "ghost small", onclick: () => { $("storeSel").value = s.id; selectStore(s.id); } }, "选择 Select")));
     })));
-  if (cur) { $("rentActive").checked = cur.active; $("rentUntil").value = cur.rental_until || ""; }
+  if (cur) {
+    $("rentActive").checked = cur.active; $("rentUntil").value = cur.rental_until || "";
+    $("aiOn").checked = !!cur.ai_photo; $("aiDaily").value = cur.ai_photo_daily ?? 100;
+  }
 }
+$("addonForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!cur) return;
+  const { error } = await sb.rpc("admin_set_ai_photo", { p_id: cur.id, p_on: $("aiOn").checked, p_daily: parseInt($("aiDaily").value) || 0 });
+  if (error) return toast(error.message);
+  toast("已保存 Saved"); await loadStores(cur.id);
+});
 $("rentalForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!cur) return;
