@@ -207,7 +207,7 @@ async function runSession(byTap = false) {
     await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
     showPrize(await getPrize(won));
-    await sleep(8000);
+    await countdown($("timer"), 8).done;
     $("prize").classList.add("hidden");
     if (S.photo !== false && await askPhoto()) await takePhoto();
     break;
@@ -295,11 +295,13 @@ async function askPhoto() {
   speak(U().photoAsk, 0);
   $("photoYes").textContent = U().photoYes; $("photoNo").textContent = U().photoNo;
   $("photoAsk").classList.remove("hidden");
+  const t = countdown($("timer"), 10);
   const yes = await new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(false), 10000);
-    $("photoYes").onclick = () => { clearTimeout(timer); resolve(true); };
-    $("photoNo").onclick = () => { clearTimeout(timer); resolve(false); };
+    t.done.then(() => resolve(false));
+    $("photoYes").onclick = () => resolve(true);
+    $("photoNo").onclick = () => resolve(false);
   });
+  t.stop();
   $("photoAsk").classList.add("hidden"); bubble.classList.add("hidden");
   return yes;
 }
@@ -333,15 +335,9 @@ async function takePhoto() {
   $("photoDone").textContent = U().done;
   $("photoShare").classList.remove("hidden");
   say(msg.textContent);
-  await new Promise((resolve) => {     // 上方显示倒数，时间到或点「完成」就关闭
-    let left = 40;
-    const tick = () => { $("photoTimer").textContent = "⏱ " + U().closeIn.replace("{n}", left); };
-    tick();
-    const timer = setInterval(() => { if (--left <= 0) finish(); else tick(); }, 1000);
-    const finish = () => { clearInterval(timer); resolve(); };
-    $("photoDone").onclick = finish;
-  });
-  $("photoTimer").textContent = "";
+  const t = countdown($("photoTimer"), 40);   // 时间到或点「完成」就关闭
+  $("photoDone").onclick = t.stop;
+  await t.done;
   view.classList.add("hidden");
 }
 
@@ -390,6 +386,18 @@ function composePhoto(cv, art, mirror) {
   g.textAlign = "left"; g.fillText(tr(S.storeName), W * 0.04, H - band / 2);
   g.font = `${Math.round(band * 0.3)}px sans-serif`;
   g.textAlign = "right"; g.fillText(new Date().toLocaleDateString(lang === "zh" ? "zh-CN" : "en-MY"), W * 0.96, H - band / 2);
+}
+
+// 上方倒数计时「n 秒后自动关闭」：时间到或调用 stop() 就结束（done 完成）
+function countdown(el, secs) {
+  let left = secs, stop;
+  const tick = () => { el.textContent = "⏱ " + U().closeIn.replace("{n}", left); };
+  const done = new Promise((resolve) => {
+    const timer = setInterval(() => { if (--left <= 0) stop(); else tick(); }, 1000);
+    stop = () => { clearInterval(timer); el.textContent = ""; resolve(); };
+  });
+  tick();
+  return { done, stop };
 }
 
 // ---------- 角色表现 ----------

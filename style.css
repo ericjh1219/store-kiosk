@@ -53,7 +53,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #stage.full #character { position: absolute; inset: 0; z-index: -1; }
 #stage.full #charVideo, #stage.full #charImg { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
 #stage.full #sign { position: absolute; top: 2vh; left: 50%; transform: translateX(-50%); opacity: 0; }
-#stage.full #bubble { top: 6vh; }
+#stage.full #bubble { top: 9vh; }
 #stage.full #game, #stage.full #hint { text-shadow: 0 0 1vh #000, 0 .3vh .8vh #000; }
 #stage.full #hint { pointer-events: none; }   /* 点「点我再玩一次」的字也算点角色 */
 
@@ -89,7 +89,11 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 @keyframes flash { to { opacity: 0; } }
 #photoShare { display: flex; flex-direction: column; align-items: center; gap: 1.4vh; text-align: center; }
 #photoQr img { background: #fff; padding: 1vh; border-radius: 1vh; width: 20vh; height: 20vh; image-rendering: pixelated; }
-#photoTimer { flex: none; font-size: 3vh; font-weight: 700;
+#photoTimer, #timer { flex: none; font-size: 3vh; font-weight: 700;
   color: var(--primary); background: var(--accent); padding: .8vh 3vh; border-radius: 4vh; font-variant-numeric: tabular-nums; }
-#photoTimer:empty { display: none; }
+#photoTimer:empty, #timer:empty { display: none; }
+/* 奖品卡和「要合照吗」的倒数：在最上方，倒数时店名招牌先让位 */
+#timer { position: absolute; top: 2vh; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
+  box-shadow: 0 .6vh 2vh #0006; }
+#timer:not(:empty) ~ #sign { visibility: hidden; }
 #photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 80vw; }
