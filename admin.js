@@ -67,7 +67,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function showLogin() {
-  booted = "";
+  booted = ""; activeTab = "";   // 下一个登录的人从「核销」开始，不会停在上一个人的设置页
   show("loginView", true); show("appView", false); show("noAccessView", false);
   show("logoutBtn", false); show("storeSel", false); $("who").textContent = "";
 }
@@ -89,8 +89,11 @@ async function boot(session) {
   buildTabs();
 }
 
+// 设备密钥不在这里读（员工没有权限看），店主要用时才用 store_device_key 取
+const STORE_COLS = "id, config, active, rental_until, ai_photo, ai_photo_daily";
 async function loadStores(selectId) {
-  const { data, error } = await sb.from("stores").select("*").order("id");
+  let { data, error } = await sb.from("stores").select(STORE_COLS).order("id");
+  if (error) ({ data, error } = await sb.from("stores").select("*").order("id"));   // 数据库还没更新到新版时的退路
   if (error) return toast(error.message);
   stores = data;
   const sel = $("storeSel");
@@ -108,7 +111,16 @@ function selectStore(id) {
   cur = stores.find((s) => s.id === id) || null;
   try { localStorage.setItem("admin-store", id); } catch {}
   document.body.classList.toggle("hide-staff", !isOwner());
-  if (activeTab) openTab(activeTab);
+  if (activeTab) buildTabs();   // 每家店的权限可能不同（这家是店主、那家只是员工），分页要跟着换
+}
+
+// 设备密钥：只有店主和平台管理员拿得到，第一次要用时向服务器要
+async function ensureKey(store) {
+  if (!store.device_key) {
+    const { data, error } = await sb.rpc("store_device_key", { p_store: store.id });
+    if (error) toast(error.message); else store.device_key = data;
+  }
+  return store.device_key;
 }
 
 // ---------- 分页 ----------
@@ -118,11 +130,10 @@ const TABS = [
 ];
 let activeTab = "";
 function buildTabs() {
-  const visible = TABS.filter(([, , need]) => !need || (need === "owner" ? isOwnerAnywhere() : me.isAdmin));
+  const visible = TABS.filter(([, , need]) => !need || (need === "owner" ? isOwner() : me.isAdmin));
   $("tabs").replaceChildren(...visible.map(([key, label]) => h("button", { "data-key": key, onclick: () => openTab(key) }, label)));
-  openTab(activeTab || "redeem");
+  openTab(visible.some(([key]) => key === activeTab) ? activeTab : "redeem");
 }
-const isOwnerAnywhere = () => me.isAdmin || Object.values(me.roles).includes("owner");
 
 function openTab(key) {
   if (!cur && key !== "platform") key = me.isAdmin ? "platform" : key;
@@ -156,8 +167,10 @@ $("redeemForm").addEventListener("submit", async (e) => {
 
 async function loadRecent() {
   if (!cur) return;
-  const { data } = await sb.from("redemptions").select("*").eq("store_id", cur.id)
+  const id = cur.id;
+  const { data } = await sb.from("redemptions").select("*").eq("store_id", id)
     .order("created_at", { ascending: false }).limit(30);
+  if (cur?.id !== id) return;   // 等待期间换了店，不要把上一家的资料显示在这家下面
   $("recentCodes").replaceChildren(h("table", {},
     h("tr", {}, h("th", {}, "码 Code"), h("th", {}, "奖品 Prize"), h("th", {}, "发出 Issued"), h("th", {}, "状态 Status")),
     (data || []).map((r) => h("tr", {}, h("td", {}, r.code), h("td", {}, `${r.prize.emoji || ""} ${tr(r.prize.name)}`),
@@ -169,7 +182,9 @@ async function loadRecent() {
 $("statsDays").onchange = () => loadStats();
 async function loadStats() {
   if (!cur) return;
-  const { data, error } = await sb.rpc("store_stats", { p_store: cur.id, p_days: +$("statsDays").value });
+  const id = cur.id;
+  const { data, error } = await sb.rpc("store_stats", { p_store: id, p_days: +$("statsDays").value });
+  if (cur?.id !== id) return;
   if (error) return toast(error.message);
   const sum = (k) => data.reduce((s, r) => s + Number(r[k]), 0);
   const visits = sum("visits"), plays = sum("plays"), codes = sum("codes"), redeemed = sum("redeemed");
@@ -238,7 +253,8 @@ const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy"
 
 function renderSettings() {
   if (!cur) return;
-  const c = structuredClone(cur.config);
+  const store = cur, c = structuredClone(cur.config);
+  const previewLink = h("a", { class: "btn ghost", target: "_blank", title: "先保存，再打开互动屏看效果（不计入数据）" }, "预览互动屏 Preview");
   c.lines ||= {}; c.prizes ||= []; c.character ||= {}; c.theme ||= {};
   const form = $("settingsForm");
   const val = (path, fallback = "") => path.reduce((o, k) => (o == null ? undefined : o[k]), c) ?? fallback;
@@ -343,8 +359,9 @@ function renderSettings() {
       h("div", { class: "grid2" }, volume("musicVolume", "音乐音量 Music", c.musicVolume ?? 30),
         volume("sfxVolume", "音效音量 Sound effects", c.sfxVolume ?? 80))),
     h("div", { class: "row" }, h("button", { type: "submit" }, "保存 Save"),
-      h("a", { class: "btn ghost", target: "_blank", href: kioskUrl(true), title: "先保存，再打开互动屏看效果（不计入数据）" }, "预览互动屏 Preview")),
+      previewLink),
   );
+  ensureKey(store).then(() => (previewLink.href = kioskUrl(store, true)));
   syncLangs();
   form.onsubmit = (e) => { e.preventDefault(); saveSettings(c, form, prizeBody); };
 }
@@ -383,24 +400,29 @@ async function saveSettings(base, form, prizeBody) {
   c.sounds = Object.fromEntries(SOUNDS.map(([k]) => [k, f(`sounds.${k}`)]));
   c.musicVolume = Number(f("musicVolume"));
   c.sfxVolume = Number(f("sfxVolume"));
-  const { error } = await sb.from("stores").update({ config: c, updated_at: new Date().toISOString() }).eq("id", cur.id);
+  const store = cur;   // 保存期间换了店，也只更新原来那家
+  const { data, error } = await sb.from("stores").update({ config: c, updated_at: new Date().toISOString() })
+    .eq("id", store.id).select("id");
   if (error) return toast("保存失败 Save failed: " + error.message);
-  cur.config = c;
+  if (!data?.length) return toast("保存失败：没有修改这家店的权限 Save failed: no permission for this store", 4000);
+  store.config = c;
   toast("已保存，互动屏 5 分钟内自动更新 Saved — kiosks update within 5 min", 4000);
 }
 
 // ---------- 设备 ----------
 // 设备链接（带密钥）；preview = 后台「预览互动屏」用的，不计入数据、领奖码只是示范
-function kioskUrl(preview = false) {
+function kioskUrl(store, preview = false) {
   const base = new URL("index.html", location.href);
-  base.searchParams.set("store", cur.id);
-  base.searchParams.set("key", cur.device_key);
+  base.searchParams.set("store", store.id);
+  base.searchParams.set("key", store.device_key || "");
   if (preview) base.searchParams.set("preview", "1");
   return base.toString();
 }
-function renderDevice() {
+async function renderDevice() {
   if (!cur) return;
-  const url = kioskUrl();
+  const store = cur;
+  if (!(await ensureKey(store)) || cur !== store) return;
+  const url = kioskUrl(store);
   $("deviceUrl").value = url;
   $("openKiosk").href = url;
   const qr = window.qrcode(0, "M"); qr.addData(url); qr.make();
@@ -412,15 +434,18 @@ $("copyUrlBtn").onclick = async () => {
 };
 $("rotateBtn").onclick = async () => {
   if (!confirm("更换后，旧链接的设备需要重新设置。确定？\nOld device links will stop working. Continue?")) return;
-  const { data, error } = await sb.rpc("rotate_device_key", { p_store: cur.id });
+  const store = cur;
+  const { data, error } = await sb.rpc("rotate_device_key", { p_store: store.id });
   if (error) return toast(error.message);
-  cur.device_key = data; renderDevice(); toast("已更换密钥 New key created");
+  store.device_key = data; renderDevice(); toast("已更换密钥 New key created");
 };
 
 // ---------- 员工 ----------
 async function loadStaff() {
   if (!cur) return;
-  const { data } = await sb.from("staff").select("*").eq("store_id", cur.id).order("created_at");
+  const id = cur.id;
+  const { data } = await sb.from("staff").select("*").eq("store_id", id).order("created_at");
+  if (cur?.id !== id) return;
   $("staffList").replaceChildren(h("table", {},
     h("tr", {}, h("th", {}, "邮箱 Email"), h("th", {}, "角色 Role"), h("th", {})),
     (data || []).map((r) => h("tr", {}, h("td", {}, r.email), h("td", {}, r.role === "owner" ? "店主 Owner" : "员工 Staff"),
@@ -441,7 +466,7 @@ $("staffForm").addEventListener("submit", async (e) => {
 
 // ---------- 平台管理 ----------
 function renderPlatform() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });   // 和互动屏一样按马来西亚日期算到期
   $("allStores").replaceChildren(h("table", {},
     h("tr", {}, ["ID", "店名 Name", "状态 Status", "到期 Until", "AI 合照", ""].map((t) => h("th", {}, t))),
     stores.map((s) => {

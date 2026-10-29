@@ -64,6 +64,14 @@ const fsSync = () => {
 $("fsBtn").onclick = () => (canFull ? goFull() : tip(U().fsTip));
 document.addEventListener("fullscreenchange", fsSync); document.addEventListener("webkitfullscreenchange", fsSync); fsSync();
 
+// 屏幕常亮：浏览器支持的话（安卓 Chrome、iPadOS 16.4 以上）不会自动熄屏；切到别的 App 回来会失效，要重新申请
+let wakeLock = null;
+async function keepAwake() {
+  if (!("wakeLock" in navigator) || wakeLock || document.visibilityState !== "visible") return;
+  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => (wakeLock = null)); } catch {}
+}
+document.addEventListener("visibilitychange", () => faceDetector && keepAwake());
+
 // 待机时在气泡里显示一下说明
 function tip(text) {
   bubble.textContent = text; bubble.classList.remove("hidden");
@@ -86,6 +94,7 @@ document.addEventListener("pointerdown", () => {
 }, true);
 let holdTimer;
 $("unlockZone").addEventListener("pointerdown", () => {
+  clearInterval(holdTimer);   // 两只手指一起按会触发两次：旧的计时要先停掉，不然放手后还是会解锁
   const z = $("unlockZone"); let n = 3;
   z.textContent = "🔓 " + n;
   holdTimer = setInterval(() => { if (--n > 0) z.textContent = "🔓 " + n; else { clearInterval(holdTimer); z.textContent = ""; setLocked(false); } }, 1000);
@@ -164,7 +173,9 @@ setInterval(async () => {
   if (state !== "idle") return;
   try {
     const r = await fetchStore();
-    if (r.missing || !r.active || (backendOn && !(await keyValid()))) return location.reload();
+    const ok = !r.missing && r.active && (!backendOn || (await keyValid()));
+    if (state !== "idle") return;   // 下载设置期间顾客开始玩了：这次先不套用，等下一次
+    if (!ok) return location.reload();
     if (JSON.stringify(r.cfg) !== rawCfg) { applyStore(r.cfg); toIdle(); }
   } catch (e) { console.warn("refresh failed", e); }  // 断网时继续用旧设置
 }, C.refreshMs);
@@ -190,7 +201,7 @@ async function start() {
   const sb = $("startBtn");
   sb.dataset.busy = 1; sb.textContent = U().loading;
   try {
-    goFull();
+    goFull(); keepAwake();
     videoSound = true;   // 点了启动之后浏览器才允许有声音播放
     $("charVideo").muted = !!S.character?.mute?.[$("charVideo").dataset.key];
     startSound();
@@ -215,6 +226,7 @@ async function start() {
 // ---------- 每帧检测 ----------
 let lastT = -1;
 function loop() {
+  requestAnimationFrame(loop);   // 先排好下一帧：这一帧万一出错，检测也不会就此停掉
   const now = performance.now();
   if (cam.readyState >= 2 && now !== lastT) {
     lastT = now;
@@ -236,7 +248,6 @@ function loop() {
     onTick();
     $("dbgText").textContent = `store=${storeId} lang=${lang}\nstate=${state}\nfaces=${faces.length} present=${!!presentSince}\ngesture=${g}`;
   }
-  requestAnimationFrame(loop);
 }
 
 function onTick() {
@@ -256,6 +267,12 @@ hint.addEventListener("click", tapToPlay);   // 点下面的「点我再玩一�
 // ---------- 互动流程 ----------
 async function runSession() {
   state = "busy"; hint.textContent = ""; syncMusic();
+  try { await playSession(); }
+  catch (e) { console.error("session failed", e); }   // 中途出了意外也要结束这一轮回到待机，不能一直卡住
+  return bye();
+}
+
+async function playSession() {
   logEvent("visit");
   setMood("wave"); playVideo("wave");
   await speak(pick(T().welcome), 2200);
@@ -284,7 +301,6 @@ async function runSession() {
     if (S.photo !== false && await askPhoto()) await takePhoto();
     break;
   }
-  return bye();
 }
 
 async function playRound() {
@@ -311,7 +327,7 @@ document.querySelectorAll("#tapPick button").forEach((b) =>
   b.addEventListener("click", () => { tapMove = b.dataset.move; $("youHand").textContent = ICON[tapMove]; }));
 
 async function bye() {
-  $("game").classList.add("hidden"); $("prize").classList.add("hidden");
+  for (const id of ["game", "prize", "photoAsk", "photo"]) $(id).classList.add("hidden");
   setMood(""); playVideo("idle");
   await speak(T().bye, 1500);
   // 马上回到待机，显示「点我再玩一次」：同一个人不会自动再开（点了就能马上玩），新顾客 20 秒后才自动开始
@@ -336,7 +352,7 @@ function idleHint() {
 
 // ---------- 离线奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {
-  const key = `stock-${storeId}-${new Date().toISOString().slice(0, 10)}`;
+  const key = `stock-${storeId}-${new Date().toLocaleDateString("en-CA")}`;   // 本地日期 YYYY-MM-DD：午夜换新一天（用 UTC 会变成早上 8 点）
   let used = {};
   try { used = JSON.parse(localStorage.getItem(key)) || {}; } catch {}
   const id = (p) => tr(p.name);
@@ -352,10 +368,16 @@ function drawPrize() {
 // 有后端：服务器抽奖并生成可核销的领奖码；没后端或断网：本机抽奖，码只作展示
 async function getPrize(won) {
   if (backendOn && !preview) {
-    try {
-      const r = await rpc("kiosk_prize", { p_store: storeId, p_key: deviceKey, p_won: won });
-      return { prize: r.prize, code: r.code };
-    } catch (e) { console.warn("kiosk_prize failed, using offline draw", e); }
+    // 同一家店 5 秒内只能发一个码：店里有两台屏幕刚好同时发奖时，等一下再要，不要给顾客一个核销不了的码
+    for (let tries = 0; tries < 4; tries++) {
+      try {
+        const r = await rpc("kiosk_prize", { p_store: storeId, p_key: deviceKey, p_won: won });
+        return { prize: r.prize, code: r.code };
+      } catch (e) {
+        if (/53400/.test(e.message) && tries < 3) { await sleep(2000); continue; }
+        console.warn("kiosk_prize failed, using offline draw", e); break;
+      }
+    }
   }
   const d = new Date();
   return { prize: won ? drawPrize() : S.consolation,
@@ -559,15 +581,14 @@ function playVideo(name) {
   const v = $("charVideo"), img = $("charImg");
   stage.classList.toggle("full", !!src);   // 上传的素材全屏播放，不显示店名招牌
   $("mascot").style.display = src ? "none" : "";
-  if (!src) { v.hidden = img.hidden = true; return; }
+  if (!src) { v.hidden = img.hidden = true; v.pause(); return; }   // 收起来的视频要暂停，不然看不到还会继续出声
   const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
   v.hidden = !isVideo; img.hidden = isVideo;
+  if (!isVideo) v.pause();
   const el = isVideo ? v : img;
   if (isVideo) { v.dataset.key = key; v.muted = !videoSound || !!S.character?.mute?.[key]; }
-  if (el.dataset.src !== src) {
-    el.dataset.src = src; el.src = mediaCache[src] || src;
-    if (isVideo) v.play().catch(() => {});
-  }
+  if (el.dataset.src !== src) { el.dataset.src = src; el.src = mediaCache[src] || src; }
+  if (isVideo) v.play().catch(() => {});   // 从动图换回同一段视频时，要接着播
 }
 
 // 角色出拳动画（店家上传了才播）：整段播完再出结果（最多等 8 秒），播的时候先收起猜拳画面，不挡住角色
