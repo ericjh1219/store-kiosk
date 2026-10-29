@@ -193,6 +193,21 @@ const LINE_FIELDS = [
 const LANG_NAMES = { zh: "中文", en: "English" };
 // 声音：音乐循环播放，音效播一次
 const SOUNDS = [["bgm", "背景音乐"], ["game", "游戏音乐"], ["win", "赢了"], ["lose", "输了"], ["draw", "平手"], ["photo", "拍照"]];
+// 声音模版：tools/make_sounds.py 合成的原创声音，放在网站的 sounds/ 里
+const SOUND_TEMPLATES = {
+  bgm: [["bgm-sunny", "轻快午后"], ["bgm-teahouse", "中国风茶楼"], ["bgm-lofi", "轻松 Lo-fi"]],
+  game: [["game-bouncy", "欢乐挑战"], ["game-8bit", "8-bit 游戏机"]],
+  win: [["win-fanfare", "胜利号角"], ["win-coins", "金币叮叮"], ["win-gong", "锣鼓 咚咚锵"]],
+  lose: [["lose-wahwah", "哇哇哇"], ["lose-slide", "可爱滑落"]],
+  draw: [["draw-dingdong", "叮咚"], ["draw-boop", "啵啵"]],
+  photo: [["photo-shutter", "咔嚓快门"], ["photo-flash", "闪光"]],
+};
+const SOUND_SETS = [
+  ["轻快 Bright", { bgm: "bgm-sunny", game: "game-bouncy", win: "win-fanfare", lose: "lose-wahwah", draw: "draw-dingdong", photo: "photo-shutter" }],
+  ["中国风 Chinese", { bgm: "bgm-teahouse", game: "game-bouncy", win: "win-gong", lose: "lose-slide", draw: "draw-boop", photo: "photo-shutter" }],
+  ["游戏机 8-bit", { bgm: "bgm-lofi", game: "game-8bit", win: "win-coins", lose: "lose-slide", draw: "draw-boop", photo: "photo-flash" }],
+];
+const tplUrl = (id) => `sounds/${id}.mp3`;
 const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm" };
 
 // 上传到 assets/<店铺ID>/，文件名带时间戳（所以可以让浏览器长期缓存）
@@ -255,22 +270,32 @@ function renderSettings() {
 
   const colorInp = (name, value) => h("label", {}, name.split(".").pop(), inp(name, value, { type: "color" }));
 
-  // 一行素材：网址 + 上传按钮（声音多一个试听）
-  const assetRow = (name, label, value, accept, placeholder, listen) => {
+  // 一行素材：网址 + 上传按钮（声音多一个「选模版」和试听）
+  const assetRow = (name, label, value, accept, placeholder, templates) => {
     const url = inp(name, value, { type: "text", placeholder });
+    const pick = templates && h("select", { class: "tpl", onchange: () => { if (pick.value) { url.value = pick.value; preview(pick.value); } } },
+      h("option", { value: "" }, "选模版…"), templates.map(([id, l]) => h("option", { value: tplUrl(id), selected: tplUrl(id) === value }, l)));
+    const set = (v) => { url.value = v; if (pick) pick.value = templates.some(([id]) => tplUrl(id) === v) ? v : ""; };
+    url.addEventListener("input", () => set(url.value.trim()));
     const file = h("input", { type: "file", accept, hidden: true, onchange: async () => {
       const f = file.files[0]; if (!f) return;
       const u = await uploadAsset(f, name.split(".").pop());
-      if (u) url.value = u;
+      if (u) set(u);
     } });
-    return h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" },
-      listen && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
+    const row = h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" }, pick,
+      templates && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
       h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
+    row.set = set;
+    return row;
   };
   const mediaRows = MEDIA_STATES.map(([state, label]) => assetRow(`media.${state}`, label, val(["character", "media", state]),
     "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 内置卡通 / built-in）"));
   const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
-    "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", true));
+    "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", SOUND_TEMPLATES[k]));
+  const applySet = (set) => {
+    SOUNDS.forEach(([k], i) => soundRows[i].set(tplUrl(set[k])));
+    toast("已套用，记得保存 Applied — remember to Save");
+  };
   const volume = (name, label, value) => {
     const out = h("b", {}, value + "%");
     return h("label", {}, label, " ", out,
@@ -306,7 +331,9 @@ function renderSettings() {
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
         colorInp(`skin.${k}`, val(["character", "skin", k], { outfit: "#e74c3c", outfitDark: "#c0392b", hair: "#2c2c2c", skin: "#ffe0bd" }[k]))))),
     h("fieldset", {}, h("legend", {}, "声音 Sounds"),
-      h("p", { class: "hint" }, "上传 mp3 / m4a 等音频（最大 20MB），每一项都可以留空。「背景音乐」待机时循环播放；「游戏音乐」猜拳时循环播放，没上传就继续放背景音乐。玩的时候音乐会自动调小一半，听得清角色说话。「赢了 / 输了 / 平手 / 拍照」是音效，到那一刻播一次。点了「启动」之后才会出声。"),
+      h("div", { class: "row" }, "一键套用整套 Apply a set：",
+        SOUND_SETS.map(([label, set]) => h("button", { type: "button", class: "ghost small", onclick: () => applySet(set) }, label))),
+      h("p", { class: "hint" }, "每一项可以「选模版」（▶ 试听），也可以上传自己的 mp3 / m4a 等音频（最大 20MB），留空就不播。「背景音乐」待机时循环播放；「游戏音乐」猜拳时循环播放，没上传就继续放背景音乐。玩的时候音乐会自动调小一半，听得清角色说话。「赢了 / 输了 / 平手 / 拍照」是音效，到那一刻播一次。点了「启动」之后才会出声。"),
       soundRows,
       h("div", { class: "grid2" }, volume("musicVolume", "音乐音量 Music", c.musicVolume ?? 30),
         volume("sfxVolume", "音效音量 Sound effects", c.sfxVolume ?? 80))),

@@ -9,15 +9,20 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="互动屏">
-  <link rel="stylesheet" href="style.css?v=20261030b">
+  <link rel="stylesheet" href="style.css?v=20261030d">
 </head>
 <body>
   <div id="stage">
     <div id="timer"></div>
+    <div id="corner">
+      <button id="fsBtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
+        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="fsText"></span></button>
+      <button id="lockBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></svg><span id="lockText"></span></button>
+    </div>
+    <div id="unlockZone" hidden></div>
     <header id="sign"><span id="storeName"></span></header>
     <button id="langBtn" hidden></button>
-    <button id="fsBtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
-      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="fsText"></span></button>
 
     <div id="character">
       <video id="charVideo" playsinline muted loop hidden crossorigin="anonymous"></video>
@@ -72,9 +77,9 @@
     <audio id="sfx" crossorigin="anonymous"></audio>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261030b"></script>
+  <script src="config.js?v=20261030d"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261030b"></script>
+  <script type="module" src="app.js?v=20261030d"></script>
 </body>
 </html>

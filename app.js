@@ -13,7 +13,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 let S;                         // 当前店铺配置（stores/<id>.json）
 let storeId, lang;
 let faceDetector, gestureRecognizer;
-let state = "idle";            // idle | busy | cooldown
+let state = "idle";            // idle | busy
 let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureSeen = null;       // 出拳窗口内每帧认出的手势（按顺序）
@@ -34,6 +34,7 @@ function setLang(l) {
   $("meLabel").textContent = U().me;
   $("claimText").textContent = U().claim;
   $("fsText").textContent = U().fullscreen;
+  $("lockText").textContent = U().lock;
   const sb = $("startBtn"); if (sb && !sb.dataset.busy) sb.textContent = U().start;
   if (state === "idle") idleHint();
   const next = S.languages[(S.languages.indexOf(l) + 1) % S.languages.length];
@@ -54,12 +55,42 @@ function goFull() {
 const fsSync = () => {
   $("fsBtn").hidden = standalone || !(canFull || isIOS) || !!(document.fullscreenElement || document.webkitFullscreenElement);
 };
-$("fsBtn").onclick = () => {
-  if (canFull) return goFull();
-  bubble.textContent = U().fsTip; bubble.classList.remove("hidden");
-  setTimeout(() => state === "idle" && bubble.classList.add("hidden"), 8000);
-};
+$("fsBtn").onclick = () => (canFull ? goFull() : tip(U().fsTip));
 document.addEventListener("fullscreenchange", fsSync); document.addEventListener("webkitfullscreenchange", fsSync); fsSync();
+
+// 待机时在气泡里显示一下说明
+function tip(text) {
+  bubble.textContent = text; bubble.classList.remove("hidden");
+  setTimeout(() => state === "idle" && bubble.classList.add("hidden"), 6000);
+}
+
+// 锁定：防止小朋友乱按跳出去。锁定后左上角按钮收起来、点任何地方都会回到全屏、「返回」手势留在本页；按住左上角 3 秒解锁
+// （网页没办法挡住回主画面：要完全锁住，iPad 用「引导式访问」，安卓用「屏幕固定」或 Fully Kiosk）
+let locked = false;
+function setLocked(on) {
+  locked = on;
+  try { on ? localStorage.setItem("kioskLocked", "1") : localStorage.removeItem("kioskLocked"); } catch {}
+  $("corner").hidden = on; $("unlockZone").hidden = !on;
+  if (on) { history.pushState({ locked: 1 }, ""); goFull(); }
+}
+$("lockBtn").onclick = () => { setLocked(true); if (state === "idle") tip(U().lockTip); };
+addEventListener("popstate", () => { if (locked) history.pushState({ locked: 1 }, ""); });
+document.addEventListener("pointerdown", () => {
+  if (locked && canFull && !(document.fullscreenElement || document.webkitFullscreenElement)) goFull();
+}, true);
+let holdTimer;
+$("unlockZone").addEventListener("pointerdown", () => {
+  const z = $("unlockZone"); let n = 3;
+  z.textContent = "🔓 " + n;
+  holdTimer = setInterval(() => { if (--n > 0) z.textContent = "🔓 " + n; else { clearInterval(holdTimer); z.textContent = ""; setLocked(false); } }, 1000);
+});
+for (const ev of ["pointerup", "pointerleave", "pointercancel"]) {
+  $("unlockZone").addEventListener(ev, () => { clearInterval(holdTimer); $("unlockZone").textContent = ""; });
+}
+// 不能双指缩放、不能长按弹出菜单（iPad Safari 不理会 user-scalable=no）
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+try { if (localStorage.getItem("kioskLocked")) setLocked(true); } catch {}
 
 // ---------- 后端（Supabase） ----------
 const params = new URLSearchParams(location.search);
@@ -202,8 +233,8 @@ function onTick() {
   const t = Date.now();
   const left = t - lastSeen > C.leaveMs;
   if (needLeave && left) { needLeave = false; if (state === "idle") idleHint(); }
+  if (state === "idle" && !needLeave && t > cooldownUntil && hint.textContent === U().again) idleHint();
   if (state === "idle" && !needLeave && presentSince && t - presentSince > C.presenceMs && t > cooldownUntil) runSession();
-  if (state === "cooldown" && (left || t > cooldownUntil)) toIdle();
 }
 
 // 点角色也能开始（同一个人想再玩，或摄像头没认出人）
@@ -271,10 +302,10 @@ async function bye() {
   $("game").classList.add("hidden"); $("prize").classList.add("hidden");
   setMood(""); playVideo("idle");
   await speak(T().bye, 1500);
-  bubble.classList.add("hidden");
+  // 马上回到待机，显示「点我再玩一次」：同一个人不会自动再开（点了就能马上玩），新顾客 20 秒后才自动开始
   cooldownUntil = Date.now() + C.cooldownMs;
-  state = "cooldown"; needLeave = true; syncMusic();
-  hint.textContent = "";
+  needLeave = true;
+  toIdle();
 }
 
 function toIdle() {
@@ -285,7 +316,8 @@ function toIdle() {
   idleHint();
 }
 
-function idleHint() { hint.textContent = needLeave ? U().again : T().slogan; }
+// 刚玩完（人还在，或 20 秒内）显示「点我再玩一次」，否则显示招呼语
+function idleHint() { hint.textContent = needLeave || Date.now() < cooldownUntil ? U().again : T().slogan; }
 
 // ---------- 离线奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {

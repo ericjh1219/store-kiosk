@@ -74,10 +74,20 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 :root { --primary: #4a160f; --accent: #f5d68a; --bg: #6b2d1e; }
 #langBtn { position: absolute; top: 2vh; right: 3vw; z-index: 4; font-size: 2.6vh; padding: .8vh 2vh;
   border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
-#fsBtn { position: absolute; top: 2vh; left: 3vw; z-index: 4; display: flex; align-items: center; gap: .8vh;
+#corner { position: absolute; top: 2vh; left: 3vw; z-index: 4; display: flex; gap: 1vh; }
+#fsBtn, #lockBtn { display: flex; align-items: center; gap: .8vh;
   font-size: 2.6vh; padding: .8vh 2vh; border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
-#fsBtn svg { width: 2.6vh; height: 2.6vh; }
-#fsBtn[hidden] { display: none; }
+#fsBtn svg, #lockBtn svg { width: 2.6vh; height: 2.6vh; }
+#corner[hidden], #fsBtn[hidden] { display: none; }
+#corner:not([hidden]) ~ #sign { margin-top: 5vh; }   /* 左上角按钮在的时候，招牌往下让一点，不会叠在一起 */
+/* 锁定后左上角看不到的解锁区：按住 3 秒，会显示倒数 */
+#unlockZone { position: absolute; top: 0; left: 0; width: 14vh; height: 14vh; z-index: 7; display: flex; align-items: center;
+  justify-content: center; font-size: 3.2vh; font-weight: 700; color: #fff; border-radius: 0 0 3vh 0; }
+#unlockZone[hidden] { display: none; }
+#unlockZone:not(:empty) { background: #000b; }
+/* 防乱按：不能缩放、不能选字、长按不弹菜单 */
+html { touch-action: none; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #mascot { --outfit: #e74c3c; --outfit-dark: #c0392b; --hair: #2c2c2c; --skin: #ffe0bd; }
 #mascot .outfit { fill: var(--outfit); } #mascot .outfit-dark { fill: var(--outfit-dark); }
 #mascot .hair { fill: var(--hair); } #mascot .skin { fill: var(--skin); }
