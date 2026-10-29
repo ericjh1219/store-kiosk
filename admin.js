@@ -269,7 +269,7 @@ function renderSettings() {
       colorInp("theme.primary", c.theme.primary || "#4a160f"), colorInp("theme.accent", c.theme.accent || "#f5d68a"),
       colorInp("theme.bg", c.theme.bg || "#6b2d1e"))),
     h("fieldset", {}, h("legend", {}, "角色动画 Character"),
-      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB）。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的短动画（1–2 秒，播一次），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
+      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB），建议 1080×1920。上传后角色会全屏播放，不显示店名招牌。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的短动画（1–2 秒，播一次），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
       mediaRows,
       h("h3", {}, "内置卡通颜色 Built-in character colors"),
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>

@@ -400,9 +400,10 @@ function playVideo(name) {
   const media = S.character?.media || {};
   const src = media[name] || media.idle;
   const v = $("charVideo"), img = $("charImg");
-  if (!src) return;
+  stage.classList.toggle("full", !!src);   // 上传的素材全屏播放，不显示店名招牌
+  $("mascot").style.display = src ? "none" : "";
+  if (!src) { v.hidden = img.hidden = true; return; }
   const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
-  $("mascot").style.display = "none";
   v.hidden = !isVideo; img.hidden = isVideo;
   if (isVideo) { if (!v.src.endsWith(src)) { v.src = src; v.play().catch(() => {}); } }
   else if (!img.src.endsWith(src)) img.src = src;
