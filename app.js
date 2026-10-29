@@ -38,21 +38,85 @@ function setLang(l) {
 }
 $("langBtn").onclick = () => setLang(S.languages[(S.languages.indexOf(lang) + 1) % S.languages.length]);
 
+// ---------- 后端（Supabase） ----------
+const params = new URLSearchParams(location.search);
+const deviceKey = params.get("key") || "";
+const backendOn = !!(C.backend?.url && C.backend?.key);
+
+async function rpc(fn, body) {
+  const res = await fetch(`${C.backend.url}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { apikey: C.backend.key, Authorization: `Bearer ${C.backend.key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${fn}: ${res.status} ${await res.text()}`);
+  return res.status === 204 ? null : res.json();
+}
+
+function logEvent(type) {
+  if (backendOn) rpc("kiosk_event", { p_store: storeId, p_key: deviceKey, p_type: type }).catch(console.warn);
+}
+
+function showBlocked(msg) {
+  document.body.innerHTML = `<div style="height:100vh;display:grid;place-items:center;text-align:center;font-size:4vh;padding:4vw">${msg}</div>`;
+}
+
 // ---------- 加载店铺 ----------
-async function loadStore() {
-  storeId = new URLSearchParams(location.search).get("store") || C.defaultStore;
-  try {
-    S = await (await fetch(`stores/${encodeURIComponent(storeId)}.json`, { cache: "no-cache" })).json();
-  } catch {
-    document.body.textContent = `找不到店铺 / Store not found: ${storeId}`;
-    throw new Error("store not found");
+async function fetchStore() {
+  if (backendOn) {
+    const r = await rpc("kiosk_config", { p_store: storeId });
+    if (!r) return { missing: true };
+    return { cfg: r.config, active: r.active };
   }
+  const res = await fetch(`stores/${encodeURIComponent(storeId)}.json`, { cache: "no-cache" });
+  return res.ok ? { cfg: await res.json(), active: true } : { missing: true };
+}
+
+async function keyValid() {
+  try { await rpc("kiosk_check", { p_store: storeId, p_key: deviceKey }); return true; }
+  catch (e) { return !/invalid device key/.test(e.message); }  // 断网不算无效
+}
+
+async function loadStore() {
+  storeId = params.get("store") || C.defaultStore;
+  let r;
+  try { r = await fetchStore(); } catch (e) { r = { error: e }; }
+  if (r.missing || r.error) {
+    showBlocked(`找不到店铺 / Store not found: ${storeId}`);
+    throw r.error || new Error("store not found");
+  }
+  if (!r.active) {
+    showBlocked("暂停服务<br>Service paused");
+    throw new Error("store inactive");
+  }
+  // 有后端时必须带正确的设备密钥，否则发出的领奖码无法核销
+  if (backendOn && !(await keyValid())) {
+    showBlocked("设备链接无效，请在后台重新复制链接<br>Invalid device link — copy it again from the admin page");
+    throw new Error("invalid device key");
+  }
+  applyStore(r.cfg);
+}
+
+// 定时拉取最新设置；只在待机时套用，避免打断正在玩的顾客
+setInterval(async () => {
+  if (state !== "idle") return;
+  try {
+    const r = await fetchStore();
+    if (r.missing || !r.active || (backendOn && !(await keyValid()))) return location.reload();
+    if (JSON.stringify(r.cfg) !== rawCfg) { applyStore(r.cfg); toIdle(); }
+  } catch (e) { console.warn("refresh failed", e); }  // 断网时继续用旧设置
+}, C.refreshMs);
+
+let rawCfg = "";
+function applyStore(cfg) {
+  rawCfg = JSON.stringify(cfg);
+  S = structuredClone(cfg);
   S.languages ||= Object.keys(S.lines);
   for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
-  document.title = tr(S.storeName);
   applySkin();
   playVideo("idle");
   setLang(S.languages[0]);
+  document.title = tr(S.storeName);
 }
 await loadStore();
 $("startBtn").onclick = start;
@@ -116,11 +180,13 @@ function onTick() {
 // ---------- 互动流程 ----------
 async function runSession() {
   state = "busy";
+  logEvent("visit");
   setMood("wave"); playVideo("wave");
   await speak(pick(T().welcome), 2200);
   setMood("");
   await speak(T().invite, 1800);
 
+  logEvent("play");
   for (let round = 0; round < 3; round++) {
     if (Date.now() - lastSeen > C.leaveMs) return bye();
     const you = await playRound();
@@ -132,7 +198,7 @@ async function runSession() {
     setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
     await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
-    showPrize(won ? drawPrize() : S.consolation);
+    showPrize(await getPrize(won));
     await sleep(8000);
     break;
   }
@@ -177,7 +243,7 @@ function toIdle() {
   hint.textContent = T().slogan;
 }
 
-// ---------- 奖品（每日库存存在本机，按店铺分开） ----------
+// ---------- 离线奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {
   const key = `stock-${storeId}-${new Date().toISOString().slice(0, 10)}`;
   let used = {};
@@ -192,11 +258,23 @@ function drawPrize() {
   return prize;
 }
 
-function showPrize(p) {
+// 有后端：服务器抽奖并生成可核销的领奖码；没后端或断网：本机抽奖，码只作展示
+async function getPrize(won) {
+  if (backendOn) {
+    try {
+      const r = await rpc("kiosk_prize", { p_store: storeId, p_key: deviceKey, p_won: won });
+      return { prize: r.prize, code: r.code };
+    } catch (e) { console.warn("kiosk_prize failed, using offline draw", e); }
+  }
+  const d = new Date();
+  return { prize: won ? drawPrize() : S.consolation,
+           code: `${d.getMonth() + 1}${d.getDate()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}` };
+}
+
+function showPrize({ prize: p, code }) {
   $("prizeEmoji").textContent = p.emoji;
   $("prizeName").textContent = tr(p.name);
-  const d = new Date();
-  $("prizeCode").textContent = `${d.getMonth() + 1}${d.getDate()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  $("prizeCode").textContent = code;
   $("prize").classList.remove("hidden");
 }
 

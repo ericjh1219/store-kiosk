@@ -10,7 +10,9 @@
 - `stores/<店铺ID>.json` —— **每家餐厅的设置**（店名、语言、台词、奖品、颜色、角色）
 - `assets/` —— 角色视频 / 动图
 - `config.js` —— 所有店共用的设置（触发距离、冷却时间、界面文字、模型地址）
-- `app.js` —— 流程逻辑（MediaPipe 人脸检测 + 手势识别，全部在设备本地运行，不上传画面）
+- `app.js` —— 互动屏流程逻辑（MediaPipe 人脸检测 + 手势识别，全部在设备本地运行，不上传画面）
+- `admin.html` / `admin.js` —— 商家后台
+- `supabase/migrations/` —— 后端数据库结构和权限
 
 ## 新增一家餐厅
 1. 复制 `stores/demo.json`（中英双语）或 `stores/kopitiam-en.json`（只有英文），改名为 `stores/<店铺ID>.json`，例如 `stores/ahmad-nasi-kandar.json`。
@@ -43,6 +45,50 @@ python3 -m http.server 8765
 ```
 打开 http://localhost:8765/?store=demo
 
+## 商家后台（Supabase）
+后台网址：https://ericjh1219.github.io/store-kiosk/admin.html
+
+| 角色 | 能做什么 |
+|---|---|
+| 平台管理员（你） | 新增店铺、设置租赁到期日 / 停用、管理所有店铺 |
+| 店主 Owner | 改店铺设置（台词、奖品、颜色、上传角色动画）、拿设备链接、管理员工 |
+| 员工 Staff | 核销领奖码、看数据 |
+
+- **领奖码**由服务器生成，需要设备密钥才能发奖，顾客无法伪造；后台可查重复领取和过期（默认 7 天）。
+- **每日库存**由服务器计算（马来西亚时间），多台设备共用。
+- **数据**：每天到访人数、参与猜拳、赢/输、发出与核销的领奖码。
+- **租赁到期**或停用后，互动屏自动显示「暂停服务」；续费后改日期即可恢复。
+- 后台改设置后，互动屏 **5 分钟内**自动更新，不用碰设备。
+
+### 第一次设置（约 15 分钟）
+1. 到 supabase.com 注册并新建项目，地区选 **Southeast Asia (Singapore)**。
+2. 建表：在终端运行
+   ```
+   supabase login
+   supabase link --project-ref <你的项目ref>
+   supabase db push
+   ```
+   （或者把 `supabase/migrations/` 里的 SQL 整个贴到 Supabase 的 SQL Editor 执行。）
+3. 在 SQL Editor 把自己设为平台管理员（邮箱用小写）：
+   ```sql
+   insert into public.staff (email, store_id, role) values ('你的邮箱@gmail.com', null, 'owner');
+   ```
+4. 在 Supabase → Project Settings → API 复制 **Project URL** 和 **Publishable key（anon）**，填进 `config.js` 的 `backend`，然后推送到 GitHub。
+5. 在 Supabase → Authentication → URL Configuration，把 Site URL 设为 `https://ericjh1219.github.io/store-kiosk/admin.html`（注册确认、重设密码的邮件链接会跳回这里）。
+6. 打开后台，用第 3 步的邮箱「注册」，然后登录，在「平台」里新增店铺并填店主邮箱。店主用这个邮箱注册后就能管理自己的店。
+7. 在「设备」页复制链接（或扫码），设为闺蜜机 Fully Kiosk Browser 的起始网址。
+
+> `config.js` 里的 Publishable key 本来就是公开的，可以放在网页里；**不要**把 secret / service_role key 放进任何网页文件。
+
+### 本机开发测试
+需要 Docker：
+```
+supabase start
+python3 -m http.server 8765
+```
+然后打开 http://localhost:8765/admin.html 。`config.local.js`（不会上传）会让本机页面连到本地后端。测试账号见 `supabase/seed.sql`。
+
 ## 注意
-- 奖品库存记录在每台设备的浏览器里，按店铺分开，每天自动重置。如果要防止重复领奖、在后台看数据、远程改设置，需要加一个后端和商家管理后台。
 - 摄像头只做本地检测、不存储画面。建议在店门口贴「本设备使用摄像头互动」的告示（PDPA）。
+- 没有填 `backend` 时，系统会退回读取 `stores/*.json`：这种模式下没有核销、没有统计，库存只记在设备本机。
+- 后端暂时连不上时，互动屏继续用本机抽奖；这种情况下发出的码无法在后台核销。

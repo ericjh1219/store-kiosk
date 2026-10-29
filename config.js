@@ -4,6 +4,12 @@
 window.APP_CONFIG = {
   defaultStore: "demo",
 
+  // Supabase 后端（见 README「后台」）。url 留空 = 不用后端，直接读 stores/*.json（无核销、无统计）
+  // key 填 Publishable key（anon key），它本来就是公开的，可以放在网页里
+  backend: { url: "", key: "" },
+  // 互动屏多久重新拉一次店铺设置（后台改了设置会自动生效）
+  refreshMs: 5 * 60 * 1000,
+
   // 进入画面多久算“有人来了”（毫秒），人离开多久回到待机
   presenceMs: 800,
   leaveMs: 4000,

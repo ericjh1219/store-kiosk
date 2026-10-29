@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商家后台 Merchant Admin</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="top">
+    <b>互动屏后台 <small>Kiosk Admin</small></b>
+    <select id="storeSel" hidden></select>
+    <span id="who"></span>
+    <button id="logoutBtn" class="ghost" hidden>退出 Logout</button>
+  </header>
+
+  <main id="loginView" class="card narrow" hidden>
+    <h2>登录 Sign in</h2>
+    <form id="loginForm">
+      <label>邮箱 Email <input type="email" id="email" required autocomplete="username"></label>
+      <label>密码 Password <input type="password" id="password" required minlength="8" autocomplete="current-password"></label>
+      <button type="submit">登录 Sign in</button>
+      <button type="button" id="signupBtn" class="ghost">首次使用：注册 Create account</button>
+      <button type="button" id="forgotBtn" class="link">忘记密码 Forgot password</button>
+    </form>
+    <p id="loginMsg" class="msg"></p>
+  </main>
+
+  <main id="noAccessView" class="card narrow" hidden>
+    <h2>还没有店铺权限 No store access</h2>
+    <p>请联系平台管理员，把你的邮箱加到店铺里。<br>Ask the platform admin to add your email to a store.</p>
+  </main>
+
+  <main id="appView" hidden>
+    <nav id="tabs"></nav>
+
+    <section data-tab="redeem" class="card narrow">
+      <h2>核销领奖码 Redeem code</h2>
+      <form id="redeemForm" class="row">
+        <input id="codeInput" placeholder="例如 W55C6P" autocomplete="off" autocapitalize="characters" maxlength="12" required>
+        <button type="submit">核销 Redeem</button>
+      </form>
+      <div id="redeemResult"></div>
+      <h3>最近领奖码 Recent codes</h3>
+      <div id="recentCodes" class="table-wrap"></div>
+    </section>
+
+    <section data-tab="stats" class="card">
+      <h2>数据 Stats <select id="statsDays"><option value="7">7 天 days</option><option value="30">30 天 days</option></select></h2>
+      <div id="statsTotals" class="tiles"></div>
+      <div id="statsTable" class="table-wrap"></div>
+    </section>
+
+    <section data-tab="settings" class="card">
+      <h2>店铺设置 Store settings</h2>
+      <form id="settingsForm"></form>
+    </section>
+
+    <section data-tab="device" class="card narrow">
+      <h2>设备链接 Device link</h2>
+      <p>在闺蜜机的 Fully Kiosk Browser 里把起始网址设为下面的链接（或扫码）。<br>
+        Set this as the start URL in Fully Kiosk Browser on the device (or scan the QR code).</p>
+      <div id="qr"></div>
+      <input id="deviceUrl" readonly>
+      <div class="row"><button id="copyUrlBtn">复制 Copy</button>
+        <a id="openKiosk" target="_blank" class="btn ghost">打开预览 Open</a>
+        <button id="rotateBtn" class="danger owner-only">更换密钥 New key</button></div>
+      <p class="hint">链接里带有设备密钥，不要公开分享。设备丢失或链接泄露时点「更换密钥」，旧链接会失效。<br>
+        The link contains the device key. Keep it private; press "New key" if it leaks.</p>
+    </section>
+
+    <section data-tab="staff" class="card narrow">
+      <h2>员工 Staff</h2>
+      <div id="staffList" class="table-wrap"></div>
+      <form id="staffForm" class="row owner-only">
+        <input type="email" id="staffEmail" placeholder="email@example.com" required>
+        <select id="staffRole"><option value="staff">员工 Staff（只能核销/看数据）</option><option value="owner">店主 Owner</option></select>
+        <button type="submit">添加 Add</button>
+      </form>
+      <p class="hint">员工用这个邮箱在登录页「注册」即可。Staff sign up with this email on the login page.</p>
+    </section>
+
+    <section data-tab="platform" class="card">
+      <h2>平台管理 Platform</h2>
+      <h3>所有店铺 All stores</h3>
+      <div id="allStores" class="table-wrap"></div>
+      <h3>当前店铺租赁 Rental of selected store</h3>
+      <form id="rentalForm" class="row">
+        <label class="inline"><input type="checkbox" id="rentActive"> 启用 Active</label>
+        <label class="inline">到期 Until <input type="date" id="rentUntil"></label>
+        <button type="submit">保存 Save</button>
+      </form>
+      <h3>新增店铺 New store</h3>
+      <form id="newStoreForm" class="grid2">
+        <label>店铺ID（英文小写和-）Store ID <input id="newId" pattern="[a-z0-9][a-z0-9\-]{1,39}" placeholder="ahmad-nasi-kandar" required></label>
+        <label>店主邮箱 Owner email <input type="email" id="newOwner" placeholder="owner@example.com"></label>
+        <label>店名 中文 <input id="newNameZh"></label>
+        <label>Store name English <input id="newNameEn" required></label>
+        <label>语言 Languages <select id="newLangs">
+          <option value="zh,en">中文 + English（默认中文）</option><option value="en,zh">English + 中文（default English）</option>
+          <option value="en">English only</option><option value="zh">只有中文</option></select></label>
+        <div><button type="submit">创建 Create</button></div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="config.js"></script>
+  <script src="config.local.js" onerror="0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

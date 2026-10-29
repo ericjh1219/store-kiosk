@@ -1,2 +1,5 @@
 .claude/
 .DS_Store
+config.local.js
+supabase/.temp/
+supabase/.branches/

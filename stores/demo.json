@@ -1,11 +1,14 @@
 {
-  "storeName": { "zh": "红颜茶楼", "en": "Hong Yan Tea House" },
+  "storeName": {"zh": "红颜茶楼", "en": "Hong Yan Tea House"},
   "languages": ["zh", "en"],
-
   "lines": {
     "zh": {
       "slogan": "走近一点，和我猜个拳吧！",
-      "welcome": ["欢迎光临红颜茶楼！", "客官里边请～", "好久不见，今天想喝点什么？"],
+      "welcome": [
+        "欢迎光临红颜茶楼！",
+        "客官里边请～",
+        "好久不见，今天想喝点什么？"
+      ],
       "invite": "举起手，跟我猜拳赢小礼品！",
       "win": "哇，你赢了！",
       "lose": "哈哈，我赢啦！送你一个安慰奖～",
@@ -15,7 +18,11 @@
     },
     "en": {
       "slogan": "Come closer and play Rock Paper Scissors with me!",
-      "welcome": ["Welcome to Hong Yan Tea House!", "Hello there, come on in!", "Hi! Thirsty today?"],
+      "welcome": [
+        "Welcome to Hong Yan Tea House!",
+        "Hello there, come on in!",
+        "Hi! Thirsty today?"
+      ],
       "invite": "Raise your hand, beat me and win a gift!",
       "win": "Wow, you win!",
       "lose": "Haha, I win! Here's a little something anyway.",
@@ -24,17 +31,25 @@
       "bye": "See you next time!"
     }
   },
-
   "prizes": [
-    { "name": { "zh": "免费柠檬茶一杯", "en": "Free Lemon Tea" }, "weight": 1, "stock": 10, "emoji": "🍋" },
-    { "name": { "zh": "小吃券 RM5", "en": "RM5 Snack Voucher" }, "weight": 3, "stock": 30, "emoji": "🥟" },
-    { "name": { "zh": "店铺贴纸", "en": "Shop Sticker" }, "weight": 6, "stock": null, "emoji": "🌸" }
+    {"id": "p1", "name": {"zh": "免费柠檬茶一杯", "en": "Free Lemon Tea"}, "weight": 1, "stock": 10, "emoji": "🍋"},
+    {"id": "p2", "name": {"zh": "小吃券 RM5", "en": "RM5 Snack Voucher"}, "weight": 3, "stock": 30, "emoji": "🥟"},
+    {"id": "p3", "name": {"zh": "店铺贴纸", "en": "Shop Sticker"}, "weight": 6, "stock": null, "emoji": "🌸"}
   ],
-  "consolation": { "name": { "zh": "9折优惠券", "en": "10% Off Coupon" }, "emoji": "🎟️" },
-
-  "theme": { "primary": "#4a160f", "accent": "#f5d68a", "bg": "#6b2d1e" },
+  "consolation": {"name": {"zh": "9折优惠券", "en": "10% Off Coupon"}, "emoji": "🎟️"},
+  "theme": {"primary": "#4a160f", "accent": "#f5d68a", "bg": "#6b2d1e"},
   "character": {
-    "skin": { "outfit": "#e74c3c", "outfitDark": "#c0392b", "hair": "#2c2c2c", "skin": "#ffe0bd" },
-    "media": { "idle": "", "wave": "", "happy": "", "sad": "" }
+    "skin": {
+      "outfit": "#e74c3c",
+      "outfitDark": "#c0392b",
+      "hair": "#2c2c2c",
+      "skin": "#ffe0bd"
+    },
+    "media": {
+      "idle": "",
+      "wave": "",
+      "happy": "",
+      "sad": ""
+    }
   }
 }
