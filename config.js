@@ -24,9 +24,9 @@ window.APP_CONFIG = {
   // 界面固定文字
   ui: {
     zh: { start: "点击启动互动屏", loading: "加载中…", startFail: "启动失败（需 HTTPS + 摄像头权限）：",
-          you: "你", me: "我", countdown: ["石头", "剪刀", "布！"], claim: "请截图或出示此画面给店员领取" },
+          you: "你", me: "我", countdown: ["石头", "剪刀", "布！"], claim: "请截图或出示此画面给店员领取", again: "👆 点我再玩一次" },
     en: { start: "Tap to start", loading: "Loading…", startFail: "Failed to start (needs HTTPS + camera): ",
-          you: "You", me: "Me", countdown: ["Rock", "Paper", "Scissors!"], claim: "Show this screen to our staff to claim" },
+          you: "You", me: "Me", countdown: ["Rock", "Paper", "Scissors!"], claim: "Show this screen to our staff to claim", again: "👆 Tap me to play again" },
   },
 
   // MediaPipe 模型地址（可改成本地路径，见 README）

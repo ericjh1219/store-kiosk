@@ -9,7 +9,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #sign { border: 0.6vh solid #c9a35b; padding: 1vh 6vw; border-radius: 1vh;
   font-size: 5vh; letter-spacing: 1vh; color: var(--accent); background: var(--primary); }
 
-#character { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
+#character { cursor: pointer; flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
 #mascot, #charVideo, #charImg { height: 100%; max-height: 55vh; max-width: 90vw; }
 #charVideo, #charImg { object-fit: contain; }
 #mascot .body { animation: bob 2.4s ease-in-out infinite; transform-origin: 100px 230px; }

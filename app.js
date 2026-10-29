@@ -15,6 +15,7 @@ let storeId, lang;
 let faceDetector, gestureRecognizer;
 let state = "idle";            // idle | busy | cooldown
 let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
+let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureVotes = null;       // 出拳窗口内收集手势
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
 
@@ -31,7 +32,7 @@ function setLang(l) {
   $("meLabel").textContent = U().me;
   $("claimText").textContent = U().claim;
   const sb = $("startBtn"); if (sb && !sb.dataset.busy) sb.textContent = U().start;
-  if (state === "idle") hint.textContent = T().slogan;
+  if (state === "idle") idleHint();
   const next = S.languages[(S.languages.indexOf(l) + 1) % S.languages.length];
   $("langBtn").textContent = next === "zh" ? "中文" : "English";
   $("langBtn").hidden = S.languages.length < 2;
@@ -173,13 +174,18 @@ function loop() {
 
 function onTick() {
   const t = Date.now();
-  if (state === "idle" && presentSince && t - presentSince > C.presenceMs && t > cooldownUntil) runSession();
-  if (state === "cooldown" && t - lastSeen > C.leaveMs) toIdle();
+  const left = t - lastSeen > C.leaveMs;
+  if (needLeave && left) { needLeave = false; if (state === "idle") idleHint(); }
+  if (state === "idle" && !needLeave && presentSince && t - presentSince > C.presenceMs && t > cooldownUntil) runSession();
+  if (state === "cooldown" && (left || t > cooldownUntil)) toIdle();
 }
 
+// 点角色也能开始（同一个人想再玩，或摄像头没认出人）
+$("character").addEventListener("click", () => { if (state === "idle" && faceDetector) runSession(true); });
+
 // ---------- 互动流程 ----------
-async function runSession() {
-  state = "busy";
+async function runSession(byTap = false) {
+  state = "busy"; hint.textContent = "";
   logEvent("visit");
   setMood("wave"); playVideo("wave");
   await speak(pick(T().welcome), 2200);
@@ -188,7 +194,7 @@ async function runSession() {
 
   logEvent("play");
   for (let round = 0; round < 3; round++) {
-    if (Date.now() - lastSeen > C.leaveMs) return bye();
+    if (!byTap && Date.now() - lastSeen > C.leaveMs) return bye();
     const you = await playRound();
     if (!you) { await speak(T().noHand, 1800); continue; }
     const bot = pick(Object.keys(ICON));
@@ -231,7 +237,7 @@ async function bye() {
   await speak(T().bye, 1500);
   bubble.classList.add("hidden");
   cooldownUntil = Date.now() + C.cooldownMs;
-  state = "cooldown";
+  state = "cooldown"; needLeave = true;
   hint.textContent = "";
 }
 
@@ -240,8 +246,10 @@ function toIdle() {
   setLang(S.languages[0]); // 下一位顾客回到默认语言
   setMood(""); playVideo("idle");
   bubble.classList.add("hidden");
-  hint.textContent = T().slogan;
+  idleHint();
 }
+
+function idleHint() { hint.textContent = needLeave ? U().again : T().slogan; }
 
 // ---------- 离线奖品（每日库存存在本机，按店铺分开） ----------
 function drawPrize() {
