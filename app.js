@@ -204,7 +204,9 @@ function onTick() {
 }
 
 // 点角色也能开始（同一个人想再玩，或摄像头没认出人）
-$("character").addEventListener("click", () => { if (state === "idle" && faceDetector) runSession(true); });
+const tapToPlay = () => { if (state === "idle" && faceDetector) runSession(true); };
+$("character").addEventListener("click", tapToPlay);
+hint.addEventListener("click", tapToPlay);   // 点下面的「点我再玩一次」也可以
 
 // ---------- 互动流程 ----------
 async function runSession(byTap = false) {

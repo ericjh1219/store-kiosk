@@ -46,7 +46,12 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #prizeCode { font-size: 3vh; letter-spacing: .5vh; background: var(--primary); color: var(--accent); display: inline-block;
   padding: .6vh 2vh; border-radius: 1vh; margin-bottom: 1vh; }
 
-#hint { font-size: 2.8vh; color: var(--accent); text-align: center; min-height: 4vh; }
+/* 待机提示做成按钮样子，离开屏幕底部一段距离，轻轻呼吸提醒顾客点 */
+#hint { font-size: 3.2vh; font-weight: 700; color: var(--primary); background: var(--accent); text-align: center;
+  max-width: 86vw; padding: 1.4vh 4.5vh; border-radius: 5vh; margin-bottom: 8vh; cursor: pointer;
+  box-shadow: 0 1vh 3vh #0008, 0 0 0 .5vh #ffffff33; animation: breathe 2.4s ease-in-out infinite; }
+#hint:empty { display: none; }
+@keyframes breathe { 50% { transform: scale(1.06); box-shadow: 0 1vh 3vh #0008, 0 0 0 1.2vh #ffffff22; } }
 /* 全屏素材：视频铺满整个屏幕当背景，店名招牌隐藏（位置还在，连点 5 次仍可开调试），其他内容叠在上面 */
 #stage { isolation: isolate; }
 #stage.full { justify-content: flex-end; }
@@ -54,8 +59,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #stage.full #charVideo, #stage.full #charImg { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
 #stage.full #sign { position: absolute; top: 2vh; left: 50%; transform: translateX(-50%); opacity: 0; }
 #stage.full #bubble { top: 9vh; }
-#stage.full #game, #stage.full #hint { text-shadow: 0 0 1vh #000, 0 .3vh .8vh #000; }
-#stage.full #hint { pointer-events: none; }   /* 点「点我再玩一次」的字也算点角色 */
+#stage.full #game { text-shadow: 0 0 1vh #000, 0 .3vh .8vh #000; }
 
 #startBtn { position: absolute; inset: 0; background: #000c; color: #fff; font-size: 4vh; border: 0; }
 .hidden { display: none !important; }
