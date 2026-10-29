@@ -80,6 +80,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .media-row input[type=text] { margin: 0; }
 .row-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .row-btns select.tpl { width: 140px; margin: 0; }
+.row-btns label.mute { font-size: 14px; white-space: nowrap; }
 @media (max-width: 600px) { .media-row { grid-template-columns: 100px 1fr; } .row-btns { grid-column: 1 / -1; } }
 .msg { color: var(--bad); min-height: 1.5em; }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg);

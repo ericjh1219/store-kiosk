@@ -15,6 +15,7 @@ let storeId, lang;
 let faceDetector, gestureRecognizer;
 let state = "idle";            // idle | busy
 let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
+let videoSound = false;         // 点了启动后角色视频才出声（后台可以关掉某段的原声）
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureSeen = null;       // 出拳窗口内每帧认出的手势（按顺序）
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
@@ -190,7 +191,8 @@ async function start() {
   sb.dataset.busy = 1; sb.textContent = U().loading;
   try {
     goFull();
-    $("charVideo").muted = false;   // 点了启动之后浏览器才允许有声音播放
+    videoSound = true;   // 点了启动之后浏览器才允许有声音播放
+    $("charVideo").muted = !!S.character?.mute?.[$("charVideo").dataset.key];
     startSound();
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
@@ -549,7 +551,7 @@ function preloadMedia() {
 // 角色素材：mp4/webm 用 <video>，gif/webp/png 动图用 <img>；都没填就用内置卡通角色
 function playVideo(name) {
   const media = S.character?.media || {};
-  const src = media[name] || media.idle;
+  const key = media[name] ? name : "idle", src = media[key];
   const v = $("charVideo"), img = $("charImg");
   stage.classList.toggle("full", !!src);   // 上传的素材全屏播放，不显示店名招牌
   $("mascot").style.display = src ? "none" : "";
@@ -557,6 +559,7 @@ function playVideo(name) {
   const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
   v.hidden = !isVideo; img.hidden = isVideo;
   const el = isVideo ? v : img;
+  if (isVideo) { v.dataset.key = key; v.muted = !videoSound || !!S.character?.mute?.[key]; }
   if (el.dataset.src !== src) {
     el.dataset.src = src; el.src = mediaCache[src] || src;
     if (isVideo) v.play().catch(() => {});

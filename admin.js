@@ -271,7 +271,7 @@ function renderSettings() {
   const colorInp = (name, value) => h("label", {}, name.split(".").pop(), inp(name, value, { type: "color" }));
 
   // 一行素材：网址 + 上传按钮（声音多一个「选模版」和试听）
-  const assetRow = (name, label, value, accept, placeholder, templates) => {
+  const assetRow = (name, label, value, accept, placeholder, templates, extra) => {
     const url = inp(name, value, { type: "text", placeholder });
     const pick = templates && h("select", { class: "tpl", onchange: () => { if (pick.value) { url.value = pick.value; preview(pick.value); } } },
       h("option", { value: "" }, "选模版…"), templates.map(([id, l]) => h("option", { value: tplUrl(id), selected: tplUrl(id) === value }, l)));
@@ -284,12 +284,14 @@ function renderSettings() {
     } });
     const row = h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" }, pick,
       templates && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
-      h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
+      extra, h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
     row.set = set;
     return row;
   };
   const mediaRows = MEDIA_STATES.map(([state, label]) => assetRow(`media.${state}`, label, val(["character", "media", state]),
-    "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 内置卡通 / built-in）"));
+    "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 内置卡通 / built-in）", null,
+    h("label", { class: "inline mute", title: "这段动画播放时不出声 Mute this clip" },
+      h("input", { type: "checkbox", name: `mute.${state}`, checked: !!val(["character", "mute", state], false) }), "🔇 关原声")));
   const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
     "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", SOUND_TEMPLATES[k]));
   const applySet = (set) => {
@@ -325,7 +327,7 @@ function renderSettings() {
       colorInp("theme.primary", c.theme.primary || "#4a160f"), colorInp("theme.accent", c.theme.accent || "#f5d68a"),
       colorInp("theme.bg", c.theme.bg || "#6b2d1e"))),
     h("fieldset", {}, h("legend", {}, "角色动画 Character"),
-      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB），建议 1080×1920。上传后角色会全屏播放，不显示店名招牌。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的动画（建议 1–3 秒，整段播一次再出结果），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
+      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB），建议 1080×1920。上传后角色会全屏播放，不显示店名招牌。视频本身的声音会播放，勾「关原声」就不出声。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的动画（建议 1–3 秒，整段播一次再出结果），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
       mediaRows,
       h("h3", {}, "内置卡通颜色 Built-in character colors"),
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
@@ -373,6 +375,7 @@ async function saveSettings(base, form, prizeBody) {
   c.character = {
     skin: Object.fromEntries(["outfit", "outfitDark", "hair", "skin"].map((k) => [k, f(`skin.${k}`)])),
     media: Object.fromEntries(MEDIA_STATES.map(([s]) => [s, f(`media.${s}`)])),
+    mute: Object.fromEntries(MEDIA_STATES.map(([s]) => [s, form.elements[`mute.${s}`].checked])),
   };
   c.sounds = Object.fromEntries(SOUNDS.map(([k]) => [k, f(`sounds.${k}`)]));
   c.musicVolume = Number(f("musicVolume"));
