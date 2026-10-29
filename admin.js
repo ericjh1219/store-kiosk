@@ -233,7 +233,7 @@ function preview(src) {
   previewAudio.play().catch(() => toast("播放失败 Can't play"));
 }
 
-const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心 Happy"], ["sad", "失落 Sad"],
+const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心（角色赢）"], ["sad", "失落（角色输）"],
   ["rock", "出石头 ✊"], ["scissors", "出剪刀 ✌️"], ["paper", "出布 ✋"]];
 
 function renderSettings() {

@@ -18,8 +18,13 @@ let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureSeen = null;       // 出拳窗口内每帧认出的手势（按顺序）
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
-const mediaCache = {};        // 角色素材和声音：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
-let mixer = null;             // 声音：Web Audio 的音乐 / 音效音量（点了启动才有）
+const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
+// 声音：先建好 Web Audio（静音状态），点了「启动」才开始出声
+const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+const musicBus = actx?.createGain(), sfxBus = actx?.createGain();
+musicBus?.connect(actx.destination); sfxBus?.connect(actx.destination);
+const soundCache = {};        // 网址 → 解码好的声音
+let soundOn = false, music = null;   // music：正在放的曲子 { src, node, fade }
 
 // ---------- 语言 ----------
 const T = () => S.lines[lang];                      // 店铺台词
@@ -169,6 +174,7 @@ function applyStore(cfg) {
   for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
   applySkin();
   preloadMedia();
+  preloadSounds();
   syncMusic();
   playVideo("idle");
   setLang(S.languages[0]);
@@ -263,7 +269,8 @@ async function runSession() {
     $("botHand").textContent = ICON[bot];
     if (you === bot && ++draws < 6) { playSfx("draw"); await speak(T().draw, 1800); playVideo("idle"); continue; }
     const won = you !== bot && BEATS[you] === bot;
-    setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad"); playSfx(won ? "win" : "lose");
+    const mood = won ? "sad" : "happy";   // 角色的心情：顾客赢 = 角色输了失落，顾客输 = 角色赢了开心（和台词「哈哈，我赢啦」一致）
+    setMood(mood); playVideo(mood); playSfx(won ? "win" : "lose");
     await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
     showPrize(await getPrize(won));
@@ -464,39 +471,60 @@ function countdown(el, secs) {
   return { done, stop };
 }
 
-// ---------- 声音：后台上传的音乐（循环）和音效（播一次）----------
-// 用 Web Audio 调音量（iPad 上 <audio>.volume 改不了）。玩的时候换成游戏音乐（没有就继续背景音乐），音量减半，听得清角色说话
-function startSound() {   // 点「启动」时调用：浏览器要求点过屏幕才可以出声
-  try {
-    if (navigator.audioSession) navigator.audioSession.type = "playback";   // iPhone 静音键打开也照样出声
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const route = (el) => { const g = ctx.createGain(); ctx.createMediaElementSource(el).connect(g).connect(ctx.destination); return g; };
-    mixer = { ctx, music: route($("music")), sfx: route($("sfx")) };
-    ctx.resume?.();
-    syncMusic();
-  } catch (e) { console.warn("sound off", e); }
+// ---------- 声音：后台设的音乐（循环）和音效（播一次）----------
+// 全部用 Web Audio 先解码再播：iPad 上 <audio> 调不了音量，而且有声音的角色视频一播就会把它暂停。
+// 玩的时候换成游戏音乐（没有就继续背景音乐），音量减半，听得清角色说话
+function sound(src) {   // 网址 → 解码好的声音（Promise），同一个只下载一次
+  return (soundCache[src] ||= fetch(src).then((r) => r.arrayBuffer())
+    .then((b) => new Promise((ok, fail) => actx.decodeAudioData(b, ok, fail)))
+    .catch((e) => { console.warn("sound failed", src, e); delete soundCache[src]; return null; }));
 }
 
+function preloadSounds() {
+  if (!actx) return;
+  const want = new Set(Object.values(S.sounds || {}).filter(Boolean));
+  for (const src of Object.keys(soundCache)) if (!want.has(src)) delete soundCache[src];
+  want.forEach(sound);
+}
+
+function startSound() {   // 点「启动」时调用：浏览器要求点过屏幕才可以出声
+  if (!actx) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}   // iPhone 静音键打开也照样出声
+  actx.resume?.();
+  const unlock = actx.createBufferSource();   // iPhone / iPad 要在点击当下播一下才算解锁
+  unlock.buffer = actx.createBuffer(1, 1, 22050); unlock.connect(actx.destination); unlock.start(0);
+  soundOn = true;
+  syncMusic();
+}
+// 来电、切到别的 App 回来后，Web Audio 可能被暂停；点一下屏幕就恢复
+document.addEventListener("pointerdown", () => { if (soundOn && actx.state !== "running") actx.resume?.(); }, true);
+
 function syncMusic() {
-  if (!mixer) return;
-  const s = S.sounds || {}, a = $("music"), busy = state === "busy";
+  if (!soundOn) return;
+  const s = S.sounds || {}, busy = state === "busy", now = actx.currentTime;
   const src = (busy && s.game) || s.bgm || "";
-  const g = mixer.music.gain, now = mixer.ctx.currentTime;
-  if (a.dataset.src !== src) {   // 换曲：从 0 慢慢调大，不会突然很大声
-    a.dataset.src = src;
-    g.setValueAtTime(0, now);
-    if (!src) return a.pause();
-    a.src = mediaCache[src] || src; a.play().catch(() => {});
+  if ((music?.src || "") !== src) {   // 换曲：旧的淡出，新的淡入
+    if (music?.node) { const { node, fade } = music; fade.gain.setTargetAtTime(0, now, 0.15); setTimeout(() => node.stop(), 1000); }
+    const cur = music = src ? { src } : null;
+    if (cur) sound(src).then((buf) => {
+      if (!buf || music !== cur) return;   // 下载期间又换了曲
+      cur.node = actx.createBufferSource(); cur.node.buffer = buf; cur.node.loop = true;
+      cur.fade = actx.createGain(); cur.fade.gain.value = 0;
+      cur.node.connect(cur.fade).connect(musicBus); cur.node.start();
+      cur.fade.gain.setTargetAtTime(1, actx.currentTime, 0.3);
+    });
   }
-  g.setTargetAtTime(((S.musicVolume ?? 30) / 100) * (busy ? 0.5 : 1), now, 0.4);
+  musicBus.gain.setTargetAtTime(((S.musicVolume ?? 30) / 100) * (busy ? 0.5 : 1), now, 0.4);
 }
 
 function playSfx(name) {
   const src = S.sounds?.[name];
-  if (!mixer || !src) return;
-  const a = $("sfx");
-  mixer.sfx.gain.value = (S.sfxVolume ?? 80) / 100;
-  a.src = mediaCache[src] || src; a.play().catch(() => {});
+  if (!soundOn || !src) return;
+  sfxBus.gain.value = (S.sfxVolume ?? 80) / 100;
+  sound(src).then((buf) => {
+    if (!buf) return;
+    const n = actx.createBufferSource(); n.buffer = buf; n.connect(sfxBus); n.start();
+  });
 }
 
 // ---------- 角色表现 ----------
@@ -504,7 +532,7 @@ function setMood(m) { stage.classList.remove("wave", "happy", "sad"); if (m) sta
 
 // 角色素材先整段下载到内存，切换动画时不用再等网络（店里网速慢时，出拳动画才不会还没载入就结束）
 function preloadMedia() {
-  const want = new Set([...Object.values(S.character?.media || {}), ...Object.values(S.sounds || {})].filter(Boolean));
+  const want = new Set(Object.values(S.character?.media || {}).filter(Boolean));
   for (const [src, url] of Object.entries(mediaCache)) {
     if (!want.has(src)) { if (url.startsWith("blob:")) URL.revokeObjectURL(url); delete mediaCache[src]; }
   }
