@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>门店互动屏</title>
-  <link rel="stylesheet" href="style.css?v=20261029d">
+  <link rel="stylesheet" href="style.css?v=20261029e">
 </head>
 <body>
   <div id="stage">
@@ -12,8 +12,8 @@
     <button id="langBtn" hidden></button>
 
     <div id="character">
-      <video id="charVideo" playsinline muted loop hidden></video>
-      <img id="charImg" alt="" hidden>
+      <video id="charVideo" playsinline muted loop hidden crossorigin="anonymous"></video>
+      <img id="charImg" alt="" hidden crossorigin="anonymous">
       <svg id="mascot" viewBox="0 0 200 260" aria-hidden="true">
         <g class="body">
           <ellipse cx="100" cy="215" rx="58" ry="40" class="outfit-dark"/>
@@ -51,12 +51,19 @@
       <small id="claimText"></small>
     </div>
 
+    <div id="photoAsk" class="hidden"><button id="photoYes"></button><button id="photoNo"></button></div>
+    <div id="photo" class="hidden">
+      <div id="photoFrame"><canvas id="photoCanvas"></canvas><div id="photoCount"></div></div>
+      <div id="photoShare" class="hidden"><div id="photoQr"></div><p id="photoMsg"></p><button id="photoDone"></button></div>
+    </div>
+
     <footer id="hint"></footer>
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261029d"></script>
+  <script src="config.js?v=20261029e"></script>
   <script src="config.local.js" onerror="0"></script>
-  <script type="module" src="app.js?v=20261029d"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script type="module" src="app.js?v=20261029e"></script>
 </body>
 </html>

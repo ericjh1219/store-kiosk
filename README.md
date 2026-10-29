@@ -59,6 +59,7 @@ python3 -m http.server 8765
 - **数据**：每天到访人数、参与猜拳、赢/输、发出与核销的领奖码。
 - **租赁到期**或停用后，互动屏自动显示「暂停服务」；续费后改日期即可恢复。
 - 后台改设置后，互动屏 **5 分钟内**自动更新，不用碰设备。
+- **合照**：玩完后角色会问要不要合照，顾客点「拍合照」才会拍。照片加上角色、店名和日期，屏幕显示二维码，顾客扫码保存。照片存在数据库，**24 小时后自动删除**。店主可以在「设置」里关掉。
 
 ### 第一次设置（约 15 分钟）
 1. 到 supabase.com 注册并新建项目，地区选 **Southeast Asia (Singapore)**。
@@ -68,7 +69,7 @@ python3 -m http.server 8765
    supabase link --project-ref <你的项目ref>
    supabase db push
    ```
-   （或者把 `supabase/migrations/` 里的 SQL 整个贴到 Supabase 的 SQL Editor 执行。）
+   （或者把 `supabase/migrations/` 里的 SQL **按文件名顺序**整个贴到 Supabase 的 SQL Editor 执行。）
 3. 在 SQL Editor 把自己设为平台管理员（邮箱用小写）：
    ```sql
    insert into public.staff (email, store_id, role) values ('你的邮箱@gmail.com', null, 'owner');

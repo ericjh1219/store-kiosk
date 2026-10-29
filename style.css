@@ -63,3 +63,20 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #mascot { --outfit: #e74c3c; --outfit-dark: #c0392b; --hair: #2c2c2c; --skin: #ffe0bd; }
 #mascot .outfit { fill: var(--outfit); } #mascot .outfit-dark { fill: var(--outfit-dark); }
 #mascot .hair { fill: var(--hair); } #mascot .skin { fill: var(--skin); }
+
+/* 合照 */
+#photoAsk { position: absolute; bottom: 12vh; left: 0; right: 0; z-index: 3; display: flex; gap: 3vw; justify-content: center; }
+#photoAsk button, #photoDone { font-size: 3.6vh; padding: 1.6vh 4vh; border-radius: 4vh; border: 2px solid var(--accent); }
+#photoYes { background: var(--accent); color: var(--primary); font-weight: 800; }
+#photoNo, #photoDone { background: #0006; color: var(--accent); }
+#photo { position: absolute; inset: 0; z-index: 5; background: #000e; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2vh; padding: 3vh 4vw; }
+#photoFrame { position: relative; flex: 0 1 auto; min-height: 0; display: flex; }
+#photoCanvas { max-width: 92vw; max-height: 62vh; border: 0.6vh solid #fff; border-radius: 1vh; box-shadow: 0 2vh 6vh #000; }
+#photoCount { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 22vh; font-weight: 800; color: #fff; text-shadow: 0 0 4vh #000; pointer-events: none; }
+#photo.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .4s forwards; }
+@keyframes flash { to { opacity: 0; } }
+#photoShare { display: flex; flex-direction: column; align-items: center; gap: 1.4vh; text-align: center; }
+#photoQr img { background: #fff; padding: 1vh; border-radius: 1vh; width: 20vh; height: 20vh; image-rendering: pixelated; }
+#photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 80vw; }

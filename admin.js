@@ -250,7 +250,9 @@ function renderSettings() {
       h("label", {}, "店名 中文", inp("storeName.zh", val(["storeName", "zh"]))),
       h("label", {}, "Store name English", inp("storeName.en", val(["storeName", "en"]))),
       h("label", {}, "语言 Languages", langSel),
-      h("label", {}, "领奖码有效天数 Code valid days", inp("codeValidDays", c.codeValidDays ?? 7, { type: "number", min: 1, max: 365 })))),
+      h("label", {}, "领奖码有效天数 Code valid days", inp("codeValidDays", c.codeValidDays ?? 7, { type: "number", min: 1, max: 365 })),
+      h("label", { class: "inline" }, h("input", { type: "checkbox", name: "photo", checked: c.photo !== false }),
+        "玩完后可以和角色合照（扫码下载，24 小时后删除）Photo with character"))),
     ...lineSets,
     h("fieldset", {}, h("legend", {}, "奖品 Prizes（赢了按权重抽；每日库存留空 = 不限）"),
       h("div", { class: "table-wrap" }, h("table", {},
@@ -284,6 +286,7 @@ async function saveSettings(base, form, prizeBody) {
   c.languages = f("languages").split(",");
   c.storeName = Object.fromEntries(["zh", "en"].map((l) => [l, f(`storeName.${l}`)]).filter(([, v]) => v));
   c.codeValidDays = Math.max(1, parseInt(f("codeValidDays")) || 7);
+  c.photo = form.elements.photo.checked;
   c.lines = {};
   for (const lang of c.languages) {
     c.lines[lang] = {};

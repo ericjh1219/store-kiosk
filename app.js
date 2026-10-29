@@ -128,7 +128,7 @@ async function start() {
   try {
     document.documentElement.requestFullscreen?.().catch(() => {});
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: 640, height: 480 }, audio: false });
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
     await cam.play();
     const fs = await FilesetResolver.forVisionTasks(C.mediapipe.wasm);
     faceDetector = await FaceDetector.createFromOptions(fs, {
@@ -207,6 +207,8 @@ async function runSession(byTap = false) {
     $("game").classList.add("hidden");
     showPrize(await getPrize(won));
     await sleep(8000);
+    $("prize").classList.add("hidden");
+    if (S.photo !== false && await askPhoto()) await takePhoto();
     break;
   }
   return bye();
@@ -285,6 +287,100 @@ function showPrize({ prize: p, code }) {
   $("prizeName").textContent = tr(p.name);
   $("prizeCode").textContent = code;
   $("prize").classList.remove("hidden");
+}
+
+// ---------- 合照 ----------
+async function askPhoto() {
+  speak(U().photoAsk, 0);
+  $("photoYes").textContent = U().photoYes; $("photoNo").textContent = U().photoNo;
+  $("photoAsk").classList.remove("hidden");
+  const yes = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 10000);
+    $("photoYes").onclick = () => { clearTimeout(timer); resolve(true); };
+    $("photoNo").onclick = () => { clearTimeout(timer); resolve(false); };
+  });
+  $("photoAsk").classList.add("hidden"); bubble.classList.add("hidden");
+  return yes;
+}
+
+async function takePhoto() {
+  const cv = $("photoCanvas"), view = $("photo"), count = $("photoCount");
+  const art = await characterArt();
+  const scale = 1280 / Math.max(cam.videoWidth, cam.videoHeight);
+  cv.width = Math.round(cam.videoWidth * scale); cv.height = Math.round(cam.videoHeight * scale);
+  $("photoShare").classList.add("hidden");
+  view.classList.remove("hidden");
+
+  let live = true;   // 倒数时实时预览
+  (function draw() { if (live) { composePhoto(cv, art); requestAnimationFrame(draw); } })();
+  say(U().photoLook); count.textContent = "";
+  await sleep(1500);
+  for (const n of ["3", "2", "1"]) { count.textContent = n; say(n); await sleep(1000); }
+  count.textContent = ""; live = false;
+  composePhoto(cv, art);
+  view.classList.add("flash"); setTimeout(() => view.classList.remove("flash"), 500);
+
+  const msg = $("photoMsg"), qrBox = $("photoQr");
+  qrBox.replaceChildren();
+  try {
+    if (!backendOn) throw new Error("no backend");
+    const data = cv.toDataURL("image/jpeg", 0.85).split(",")[1];
+    const id = await rpc("kiosk_photo", { p_store: storeId, p_key: deviceKey, p_data: data });
+    const qr = qrcode(0, "M"); qr.addData(new URL(`photo.html?id=${id}`, location.href).href); qr.make();
+    qrBox.innerHTML = qr.createImgTag(6, 8);
+    msg.textContent = U().photoScan;
+  } catch (e) { console.warn("photo upload failed", e); msg.textContent = U().photoFail; }
+  $("photoDone").textContent = U().done;
+  $("photoShare").classList.remove("hidden");
+  say(msg.textContent);
+  await new Promise((resolve) => {
+    const timer = setTimeout(resolve, 40000);
+    $("photoDone").onclick = () => { clearTimeout(timer); resolve(); };
+  });
+  view.classList.add("hidden");
+}
+
+// 照片里的角色：上传的视频/动图取当前画面；内置卡通转成图片。素材不允许跨域导出时就不画角色
+async function characterArt() {
+  const v = $("charVideo"), img = $("charImg");
+  let el, w, h;
+  if (!v.hidden && v.videoWidth) [el, w, h] = [v, v.videoWidth, v.videoHeight];
+  else if (!img.hidden && img.naturalWidth) [el, w, h] = [img, img.naturalWidth, img.naturalHeight];
+  else {
+    const live = $("mascot"), svg = live.cloneNode(true);
+    const src = live.querySelectorAll("*"), dst = svg.querySelectorAll("*");
+    dst.forEach((n, i) => {
+      if (/outfit|hair|skin/.test(n.getAttribute("class") || "")) n.setAttribute("fill", getComputedStyle(src[i]).fill);
+      n.removeAttribute("class");
+    });
+    svg.removeAttribute("style"); svg.removeAttribute("id");
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); svg.setAttribute("width", 400); svg.setAttribute("height", 520);
+    el = new Image();
+    el.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+    try { await el.decode(); } catch { return null; }
+    [w, h] = [400, 520];
+  }
+  try {
+    const t = document.createElement("canvas").getContext("2d");
+    t.drawImage(el, 0, 0, 1, 1); t.getImageData(0, 0, 1, 1);
+  } catch { return null; }
+  return { el, w, h };
+}
+
+function composePhoto(cv, art) {
+  const g = cv.getContext("2d"), W = cv.width, H = cv.height, band = Math.round(H * 0.11);
+  g.save(); g.translate(W, 0); g.scale(-1, 1); g.drawImage(cam, 0, 0, W, H); g.restore();  // 镜像，像照镜子
+  if (art) {
+    const ah = H * 0.5, aw = (ah * art.w) / art.h;
+    g.drawImage(art.el, W - aw - W * 0.02, H - band - ah, aw, ah);
+  }
+  const css = getComputedStyle(document.documentElement);
+  g.fillStyle = css.getPropertyValue("--primary").trim(); g.fillRect(0, H - band, W, band);
+  g.fillStyle = css.getPropertyValue("--accent").trim(); g.textBaseline = "middle";
+  g.font = `bold ${Math.round(band * 0.42)}px "PingFang SC", "Noto Sans SC", sans-serif`;
+  g.textAlign = "left"; g.fillText(tr(S.storeName), W * 0.04, H - band / 2);
+  g.font = `${Math.round(band * 0.3)}px sans-serif`;
+  g.textAlign = "right"; g.fillText(new Date().toLocaleDateString(lang === "zh" ? "zh-CN" : "en-MY"), W * 0.96, H - band / 2);
 }
 
 // ---------- 角色表现 ----------
