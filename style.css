@@ -72,7 +72,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #photo { position: absolute; inset: 0; z-index: 5; background: #000e; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 2vh; padding: 3vh 4vw; }
 #photoFrame { position: relative; flex: 0 1 auto; min-height: 0; display: flex; }
-#photoCanvas { max-width: 92vw; max-height: 56vh; border: 0.6vh solid #fff; border-radius: 1vh; box-shadow: 0 2vh 6vh #000; }
+#photoCanvas { max-width: 92vw; max-height: 60vh; border: 0.6vh solid #fff; border-radius: 1vh; box-shadow: 0 2vh 6vh #000; }
 #photoCount { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 22vh; font-weight: 800; color: #fff; text-shadow: 0 0 4vh #000; pointer-events: none; }
 #photo.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .4s forwards; }

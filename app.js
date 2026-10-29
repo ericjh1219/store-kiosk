@@ -306,8 +306,7 @@ async function askPhoto() {
 async function takePhoto() {
   const cv = $("photoCanvas"), view = $("photo"), count = $("photoCount");
   const art = await characterArt();
-  const scale = 1280 / Math.max(cam.videoWidth, cam.videoHeight);
-  cv.width = Math.round(cam.videoWidth * scale); cv.height = Math.round(cam.videoHeight * scale);
+  cv.width = 960; cv.height = 1280;   // 竖版 3:4
   $("photoShare").classList.add("hidden");
   view.classList.remove("hidden");
 
@@ -374,10 +373,13 @@ async function characterArt() {
 
 function composePhoto(cv, art, mirror) {
   const g = cv.getContext("2d"), W = cv.width, H = cv.height, band = Math.round(H * 0.11);
+  // 摄像头画面居中裁成竖版（横向摄像头会裁掉左右两边）
+  const vw = cam.videoWidth, vh = cam.videoHeight, k = Math.min(vw / W, vh / (H - band));
+  const sw = W * k, sh = (H - band) * k, sx = (vw - sw) / 2, sy = (vh - sh) / 2;
   g.save(); if (mirror) { g.translate(W, 0); g.scale(-1, 1); }   // 预览镜像，像照镜子
-  g.drawImage(cam, 0, 0, W, H); g.restore();
+  g.drawImage(cam, sx, sy, sw, sh, 0, 0, W, H - band); g.restore();
   if (art) {
-    const ah = H * 0.5, aw = (ah * art.w) / art.h;
+    const ah = H * 0.4, aw = (ah * art.w) / art.h;
     g.drawImage(art.el, W - aw - W * 0.02, H - band - ah, aw, ah);
   }
   const css = getComputedStyle(document.documentElement);
