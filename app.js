@@ -41,17 +41,23 @@ function setLang(l) {
 }
 $("langBtn").onclick = () => setLang(S.languages[(S.languages.indexOf(lang) + 1) % S.languages.length]);
 
-// 全屏：没全屏时左下角显示「全屏」按钮（摄像头授权弹窗、返回键、重新载入都会退出全屏）
-// 旧版安卓浏览器 / iPad 只有 webkit 开头的写法
+// 全屏：没全屏时左上角显示「全屏」按钮（摄像头授权弹窗、返回键、重新载入都会退出全屏）
+// 旧版安卓浏览器 / iPad Safari 只有 webkit 开头的写法；iPhone 和 iPad 上的 Chrome 不能网页全屏，改为提示「添加到主屏幕」
 const root = document.documentElement;
+const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1);
+const standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;   // 从主屏幕打开，本来就没有网址栏
 function goFull() {
   try { (root.requestFullscreen || root.webkitRequestFullscreen).call(root, { navigationUI: "hide" })?.catch?.(() => {}); } catch {}
 }
 const fsSync = () => {
-  $("fsBtn").hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled)
-    || !!(document.fullscreenElement || document.webkitFullscreenElement);
+  $("fsBtn").hidden = standalone || !(canFull || isIOS) || !!(document.fullscreenElement || document.webkitFullscreenElement);
 };
-$("fsBtn").onclick = goFull;
+$("fsBtn").onclick = () => {
+  if (canFull) return goFull();
+  bubble.textContent = U().fsTip; bubble.classList.remove("hidden");
+  setTimeout(() => state === "idle" && bubble.classList.add("hidden"), 8000);
+};
 document.addEventListener("fullscreenchange", fsSync); document.addEventListener("webkitfullscreenchange", fsSync); fsSync();
 
 // ---------- 后端（Supabase） ----------

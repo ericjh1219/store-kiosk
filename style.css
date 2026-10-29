@@ -2,7 +2,7 @@
 html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
   font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
 
-#stage { position: relative; height: 100vh; width: 100vw; display: flex; flex-direction: column;
+#stage { position: relative; height: 100vh; height: 100dvh; width: 100vw; display: flex; flex-direction: column;
   align-items: center; justify-content: space-between; padding: 4vh 4vw;
   background: radial-gradient(ellipse at 50% 40%, var(--bg) 0%, #2a1209 70%); }
 
@@ -70,7 +70,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 :root { --primary: #4a160f; --accent: #f5d68a; --bg: #6b2d1e; }
 #langBtn { position: absolute; top: 2vh; right: 3vw; z-index: 4; font-size: 2.6vh; padding: .8vh 2vh;
   border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
-#fsBtn { position: absolute; bottom: 2vh; left: 3vw; z-index: 4; display: flex; align-items: center; gap: .8vh;
+#fsBtn { position: absolute; top: 2vh; left: 3vw; z-index: 4; display: flex; align-items: center; gap: .8vh;
   font-size: 2.6vh; padding: .8vh 2vh; border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
 #fsBtn svg { width: 2.6vh; height: 2.6vh; }
 #fsBtn[hidden] { display: none; }
