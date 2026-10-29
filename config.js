@@ -23,11 +23,11 @@ window.APP_CONFIG = {
 
   // 界面固定文字
   ui: {
-    zh: { start: "点击启动互动屏", loading: "加载中…", startFail: "启动失败（需 HTTPS + 摄像头权限）：",
+    zh: { start: "点击启动互动屏", fullscreen: "全屏", loading: "加载中…", startFail: "启动失败（需 HTTPS + 摄像头权限）：",
           you: "你", me: "我", countdown: ["石头", "剪刀", "布！"], claim: "请截图或出示此画面给店员领取", again: "👆 点我再玩一次",
           photoAsk: "要不要和我拍张合照？", photoYes: "📸 拍合照", photoNo: "不用了", photoLook: "看镜头！",
           photoScan: "用手机扫码保存照片（24 小时后自动删除）", photoFail: "照片没上传成功，可以直接用手机拍屏幕哦", done: "完成", closeIn: "{n} 秒后自动关闭" },
-    en: { start: "Tap to start", loading: "Loading…", startFail: "Failed to start (needs HTTPS + camera): ",
+    en: { start: "Tap to start", fullscreen: "Full screen", loading: "Loading…", startFail: "Failed to start (needs HTTPS + camera): ",
           you: "You", me: "Me", countdown: ["Rock", "Paper", "Scissors!"], claim: "Show this screen to our staff to claim", again: "👆 Tap me to play again",
           photoAsk: "Want a photo with me?", photoYes: "📸 Take a photo", photoNo: "No thanks", photoLook: "Look at the camera!",
           photoScan: "Scan to save your photo (deleted after 24 hours)", photoFail: "Upload failed — just snap the screen with your phone!", done: "Done", closeIn: "Closing in {n}s" },

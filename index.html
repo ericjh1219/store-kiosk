@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>门店互动屏</title>
-  <link rel="stylesheet" href="style.css?v=20261029m">
+  <link rel="stylesheet" href="style.css?v=20261029o">
 </head>
 <body>
   <div id="stage">
     <div id="timer"></div>
     <header id="sign"><span id="storeName"></span></header>
     <button id="langBtn" hidden></button>
+    <button id="fsBtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"
+      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="fsText"></span></button>
 
     <div id="character">
       <video id="charVideo" playsinline muted loop hidden crossorigin="anonymous"></video>
@@ -63,9 +65,9 @@
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261029m"></script>
+  <script src="config.js?v=20261029o"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261029m"></script>
+  <script type="module" src="app.js?v=20261029o"></script>
 </body>
 </html>

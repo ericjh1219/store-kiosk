@@ -18,6 +18,7 @@ let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureVotes = null;       // 出拳窗口内收集手势
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
+const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
 
 // ---------- 语言 ----------
 const T = () => S.lines[lang];                      // 店铺台词
@@ -31,6 +32,7 @@ function setLang(l) {
   $("youLabel").textContent = U().you;
   $("meLabel").textContent = U().me;
   $("claimText").textContent = U().claim;
+  $("fsText").textContent = U().fullscreen;
   const sb = $("startBtn"); if (sb && !sb.dataset.busy) sb.textContent = U().start;
   if (state === "idle") idleHint();
   const next = S.languages[(S.languages.indexOf(l) + 1) % S.languages.length];
@@ -38,6 +40,15 @@ function setLang(l) {
   $("langBtn").hidden = S.languages.length < 2;
 }
 $("langBtn").onclick = () => setLang(S.languages[(S.languages.indexOf(lang) + 1) % S.languages.length]);
+
+// 全屏：浏览器网址栏还在时左下角显示「全屏」按钮（摄像头授权弹窗、返回键、重新载入都会退出全屏）
+const goFull = () => document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+const fsSync = () => {
+  $("fsBtn").hidden = !document.fullscreenEnabled || !!document.fullscreenElement
+    || innerHeight >= screen.height - 4;   // Fully Kiosk 等已经占满整个屏幕时不用显示
+};
+$("fsBtn").onclick = goFull;
+document.addEventListener("fullscreenchange", fsSync); addEventListener("resize", fsSync); fsSync();
 
 // ---------- 后端（Supabase） ----------
 const params = new URLSearchParams(location.search);
@@ -115,6 +126,7 @@ function applyStore(cfg) {
   S.languages ||= Object.keys(S.lines);
   for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
   applySkin();
+  preloadMedia();
   playVideo("idle");
   setLang(S.languages[0]);
   document.title = tr(S.storeName);
@@ -126,7 +138,7 @@ async function start() {
   const sb = $("startBtn");
   sb.dataset.busy = 1; sb.textContent = U().loading;
   try {
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    goFull();
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
     await cam.play();
@@ -199,8 +211,8 @@ async function runSession(byTap = false) {
     const you = await playRound();
     if (!you) { misses++; await speak(T().noHand, 1800); continue; }
     const bot = pick(Object.keys(ICON));
-    $("botHand").textContent = ICON[bot];
     await playThrow(bot);
+    $("botHand").textContent = ICON[bot];
     if (you === bot && ++draws < 6) { await speak(T().draw, 1800); playVideo("idle"); continue; }
     const won = you !== bot && BEATS[you] === bot;
     setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
@@ -403,6 +415,20 @@ function countdown(el, secs) {
 // ---------- 角色表现 ----------
 function setMood(m) { stage.classList.remove("wave", "happy", "sad"); if (m) stage.classList.add(m); }
 
+// 角色素材先整段下载到内存，切换动画时不用再等网络（店里网速慢时，出拳动画才不会还没载入就结束）
+function preloadMedia() {
+  const want = new Set(Object.values(S.character?.media || {}).filter(Boolean));
+  for (const [src, url] of Object.entries(mediaCache)) {
+    if (!want.has(src)) { if (url.startsWith("blob:")) URL.revokeObjectURL(url); delete mediaCache[src]; }
+  }
+  for (const src of want) {
+    if (mediaCache[src]) continue;
+    mediaCache[src] = src;
+    fetch(src).then((r) => (r.ok ? r.blob() : null))
+      .then((b) => { if (b && mediaCache[src] === src) mediaCache[src] = URL.createObjectURL(b); }).catch(() => {});
+  }
+}
+
 // 角色素材：mp4/webm 用 <video>，gif/webp/png 动图用 <img>；都没填就用内置卡通角色
 function playVideo(name) {
   const media = S.character?.media || {};
@@ -413,21 +439,26 @@ function playVideo(name) {
   if (!src) { v.hidden = img.hidden = true; return; }
   const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
   v.hidden = !isVideo; img.hidden = isVideo;
-  if (isVideo) { if (!v.src.endsWith(src)) { v.src = src; v.play().catch(() => {}); } }
-  else if (!img.src.endsWith(src)) img.src = src;
+  const el = isVideo ? v : img;
+  if (el.dataset.src !== src) {
+    el.dataset.src = src; el.src = mediaCache[src] || src;
+    if (isVideo) v.play().catch(() => {});
+  }
 }
 
-// 角色出拳动画（店家上传了才播）：播一次，最多等 3 秒
+// 角色出拳动画（店家上传了才播）：整段播完再出结果（最多等 8 秒），播的时候先收起猜拳画面，不挡住角色
 async function playThrow(move) {
   const src = S.character?.media?.[move];
   if (!src) return;
   const v = $("charVideo");
+  $("game").classList.add("hidden");
   playVideo(move);
   if (/\.(mp4|webm|mov)(\?|$)/i.test(src)) {
     v.loop = false; v.currentTime = 0; v.play().catch(() => {});
-    await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(3000)]);
+    await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(8000)]);
     v.loop = true;
   } else await sleep(1800);   // 动图没有结束事件，按时间等
+  $("game").classList.remove("hidden");
 }
 
 function applySkin() {

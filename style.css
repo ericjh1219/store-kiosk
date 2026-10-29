@@ -70,6 +70,10 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 :root { --primary: #4a160f; --accent: #f5d68a; --bg: #6b2d1e; }
 #langBtn { position: absolute; top: 2vh; right: 3vw; z-index: 4; font-size: 2.6vh; padding: .8vh 2vh;
   border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
+#fsBtn { position: absolute; bottom: 2vh; left: 3vw; z-index: 4; display: flex; align-items: center; gap: .8vh;
+  font-size: 2.6vh; padding: .8vh 2vh; border-radius: 3vh; border: 2px solid var(--accent); background: #0006; color: var(--accent); }
+#fsBtn svg { width: 2.6vh; height: 2.6vh; }
+#fsBtn[hidden] { display: none; }
 #mascot { --outfit: #e74c3c; --outfit-dark: #c0392b; --hair: #2c2c2c; --skin: #ffe0bd; }
 #mascot .outfit { fill: var(--outfit); } #mascot .outfit-dark { fill: var(--outfit-dark); }
 #mascot .hair { fill: var(--hair); } #mascot .skin { fill: var(--skin); }
