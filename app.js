@@ -16,9 +16,10 @@ let faceDetector, gestureRecognizer;
 let state = "idle";            // idle | busy | cooldown
 let presentSince = 0, lastSeen = 0, cooldownUntil = 0;
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
-let gestureVotes = null;       // 出拳窗口内收集手势
+let gestureSeen = null;       // 出拳窗口内每帧认出的手势（按顺序）
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
-const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
+const mediaCache = {};        // 角色素材和声音：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
+let mixer = null;             // 声音：Web Audio 的音乐 / 音效音量（点了启动才有）
 
 // ---------- 语言 ----------
 const T = () => S.lines[lang];                      // 店铺台词
@@ -137,6 +138,7 @@ function applyStore(cfg) {
   for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
   applySkin();
   preloadMedia();
+  syncMusic();
   playVideo("idle");
   setLang(S.languages[0]);
   document.title = tr(S.storeName);
@@ -150,6 +152,7 @@ async function start() {
   try {
     goFull();
     $("charVideo").muted = false;   // 点了启动之后浏览器才允许有声音播放
+    startSound();
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
     await cam.play();
@@ -179,12 +182,12 @@ function loop() {
     if (big) { lastSeen = Date.now(); presentSince ||= Date.now(); } else if (Date.now() - lastSeen > 300) presentSince = 0;
 
     let g = "";
-    if (gestureVotes) {
+    if (gestureSeen) {
       const r = gestureRecognizer.recognizeForVideo(cam, now);
       const top = r.gestures[0]?.[0];
       if (top && top.score > 0.5 && GESTURE_TO_MOVE[top.categoryName]) {
         const m = GESTURE_TO_MOVE[top.categoryName];
-        gestureVotes[m] = (gestureVotes[m] || 0) + 1;
+        gestureSeen.push(m);
         $("youHand").textContent = ICON[m];
         g = top.categoryName;
       }
@@ -204,13 +207,13 @@ function onTick() {
 }
 
 // 点角色也能开始（同一个人想再玩，或摄像头没认出人）
-const tapToPlay = () => { if (state === "idle" && faceDetector) runSession(true); };
+const tapToPlay = () => { if (state === "idle" && faceDetector) runSession(); };
 $("character").addEventListener("click", tapToPlay);
 hint.addEventListener("click", tapToPlay);   // 点下面的「点我再玩一次」也可以
 
 // ---------- 互动流程 ----------
-async function runSession(byTap = false) {
-  state = "busy"; hint.textContent = "";
+async function runSession() {
+  state = "busy"; hint.textContent = ""; syncMusic();
   logEvent("visit");
   setMood("wave"); playVideo("wave");
   await speak(pick(T().welcome), 2200);
@@ -218,17 +221,18 @@ async function runSession(byTap = false) {
   await speak(T().invite, 1800);
 
   logEvent("play");
-  // 平手重来，直到分出输赢；没认出手 2 次就结束；连续平手 6 次算输（送安慰奖）
+  // 平手重来，直到分出输赢；连续 2 次没认出手就结束（人走了也是这样结束）；连续平手 6 次算输（送安慰奖）
+  // 玩的过程中不再用「看不到脸」判断离开：举手出拳、看角色动画时脸常常被挡住
   for (let misses = 0, draws = 0; misses < 2;) {
-    if (!byTap && Date.now() - lastSeen > C.leaveMs * 2) return bye(); // 出拳时手可能挡住脸，放宽一点
     const you = await playRound();
-    if (!you) { misses++; await speak(T().noHand, 1800); continue; }
+    if (!you) { if (++misses < 2) await speak(T().noHand, 1800); continue; }
+    misses = 0;
     const bot = pick(Object.keys(ICON));
     await playThrow(bot);
     $("botHand").textContent = ICON[bot];
-    if (you === bot && ++draws < 6) { await speak(T().draw, 1800); playVideo("idle"); continue; }
+    if (you === bot && ++draws < 6) { playSfx("draw"); await speak(T().draw, 1800); playVideo("idle"); continue; }
     const won = you !== bot && BEATS[you] === bot;
-    setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
+    setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad"); playSfx(won ? "win" : "lose");
     await speak(won ? T().win : T().lose, 1800);
     $("game").classList.add("hidden");
     showPrize(await getPrize(won));
@@ -244,17 +248,20 @@ async function playRound() {
   $("game").classList.remove("hidden");
   $("youHand").textContent = $("botHand").textContent = "❔";
   tapMove = null;
-  gestureVotes = {}; // 倒数时就开始识别，提示画面会实时显示
+  gestureSeen = []; // 倒数时就开始识别，提示画面会实时显示
   for (const w of U().countdown) {
     $("countdown").textContent = w; say(w); await sleep(800);
   }
-  gestureVotes = {}; // 只统计最后一拍之后 0.8 秒的手势
-  await sleep(800);
-  const votes = gestureVotes; gestureVotes = null;
+  gestureSeen = []; // 只算最后一拍之后 1 秒的手势
+  await sleep(1000);
+  const last = gestureSeen.slice(-5).reverse(); gestureSeen = null;   // 看最后几帧：手停下来的样子才算，换手势途中的不算
   $("countdown").textContent = "";
-  if (tapMove) return tapMove;
-  const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
-  return best && best[1] >= 3 ? best[0] : null;
+  const count = {};
+  for (const m of last) count[m] = (count[m] || 0) + 1;   // 票数一样时，越后面认出的越优先
+  const best = Object.entries(count).sort((a, b) => b[1] - a[1])[0];
+  const move = tapMove || (best && best[1] >= 2 ? best[0] : null);
+  if (move) $("youHand").textContent = ICON[move];   // 画面显示的就是真正算数的手势
+  return move;
 }
 
 document.querySelectorAll("#tapPick button").forEach((b) =>
@@ -266,12 +273,12 @@ async function bye() {
   await speak(T().bye, 1500);
   bubble.classList.add("hidden");
   cooldownUntil = Date.now() + C.cooldownMs;
-  state = "cooldown"; needLeave = true;
+  state = "cooldown"; needLeave = true; syncMusic();
   hint.textContent = "";
 }
 
 function toIdle() {
-  state = "idle"; presentSince = 0;
+  state = "idle"; presentSince = 0; syncMusic();
   setLang(S.languages[0]); // 下一位顾客回到默认语言
   setMood(""); playVideo("idle");
   bubble.classList.add("hidden");
@@ -345,7 +352,7 @@ async function takePhoto() {
   for (const n of ["3", "2", "1"]) { count.textContent = n; say(n); await sleep(1000); }
   count.textContent = ""; live = false;
   composePhoto(cv, art, false);   // 存下来的照片不镜像，招牌和衣服上的字才是正的
-  view.classList.add("flash"); setTimeout(() => view.classList.remove("flash"), 500);
+  view.classList.add("flash"); setTimeout(() => view.classList.remove("flash"), 500); playSfx("photo");
 
   const msg = $("photoMsg"), qrBox = $("photoQr");
   qrBox.replaceChildren();
@@ -425,12 +432,47 @@ function countdown(el, secs) {
   return { done, stop };
 }
 
+// ---------- 声音：后台上传的音乐（循环）和音效（播一次）----------
+// 用 Web Audio 调音量（iPad 上 <audio>.volume 改不了）。玩的时候换成游戏音乐（没有就继续背景音乐），音量减半，听得清角色说话
+function startSound() {   // 点「启动」时调用：浏览器要求点过屏幕才可以出声
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback";   // iPhone 静音键打开也照样出声
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const route = (el) => { const g = ctx.createGain(); ctx.createMediaElementSource(el).connect(g).connect(ctx.destination); return g; };
+    mixer = { ctx, music: route($("music")), sfx: route($("sfx")) };
+    ctx.resume?.();
+    syncMusic();
+  } catch (e) { console.warn("sound off", e); }
+}
+
+function syncMusic() {
+  if (!mixer) return;
+  const s = S.sounds || {}, a = $("music"), busy = state === "busy";
+  const src = (busy && s.game) || s.bgm || "";
+  const g = mixer.music.gain, now = mixer.ctx.currentTime;
+  if (a.dataset.src !== src) {   // 换曲：从 0 慢慢调大，不会突然很大声
+    a.dataset.src = src;
+    g.setValueAtTime(0, now);
+    if (!src) return a.pause();
+    a.src = mediaCache[src] || src; a.play().catch(() => {});
+  }
+  g.setTargetAtTime(((S.musicVolume ?? 30) / 100) * (busy ? 0.5 : 1), now, 0.4);
+}
+
+function playSfx(name) {
+  const src = S.sounds?.[name];
+  if (!mixer || !src) return;
+  const a = $("sfx");
+  mixer.sfx.gain.value = (S.sfxVolume ?? 80) / 100;
+  a.src = mediaCache[src] || src; a.play().catch(() => {});
+}
+
 // ---------- 角色表现 ----------
 function setMood(m) { stage.classList.remove("wave", "happy", "sad"); if (m) stage.classList.add(m); }
 
 // 角色素材先整段下载到内存，切换动画时不用再等网络（店里网速慢时，出拳动画才不会还没载入就结束）
 function preloadMedia() {
-  const want = new Set(Object.values(S.character?.media || {}).filter(Boolean));
+  const want = new Set([...Object.values(S.character?.media || {}), ...Object.values(S.sounds || {})].filter(Boolean));
   for (const [src, url] of Object.entries(mediaCache)) {
     if (!want.has(src)) { if (url.startsWith("blob:")) URL.revokeObjectURL(url); delete mediaCache[src]; }
   }

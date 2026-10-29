@@ -191,6 +191,33 @@ const LINE_FIELDS = [
   ["draw", "平手 Draw"], ["noHand", "没看到手 No hand seen"], ["bye", "再见 Goodbye"],
 ];
 const LANG_NAMES = { zh: "中文", en: "English" };
+// 声音：音乐循环播放，音效播一次
+const SOUNDS = [["bgm", "背景音乐"], ["game", "游戏音乐"], ["win", "赢了"], ["lose", "输了"], ["draw", "平手"], ["photo", "拍照"]];
+const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm" };
+
+// 上传到 assets/<店铺ID>/，文件名带时间戳（所以可以让浏览器长期缓存）
+async function uploadAsset(f, name) {
+  if (f.size > 20 * 1024 * 1024) return toast("文件太大（最大 20MB）File too large (max 20MB)");
+  const ext = (f.name.split(".").pop() || "bin").toLowerCase();
+  const path = `${cur.id}/${name}-${Date.now()}.${ext}`;
+  toast("上传中… Uploading…", 60000);
+  const body = f.type ? f : new File([f], f.name, { type: MIME[ext] || "" });   // 有些 m4a 浏览器认不出类型，按扩展名补上
+  const { error } = await sb.storage.from("assets").upload(path, body, { upsert: false, cacheControl: "31536000" });
+  if (error) return toast("上传失败 " + error.message);
+  toast("已上传，记得保存 Uploaded — remember to Save");
+  return sb.storage.from("assets").getPublicUrl(path).data.publicUrl;
+}
+
+// 后台试听：再点一次同一个就停
+let previewAudio;
+function preview(src) {
+  const same = previewAudio && !previewAudio.paused && previewAudio.src === new URL(src, location.href).href;
+  previewAudio?.pause();
+  if (same || !src) return;
+  previewAudio = new Audio(src);
+  previewAudio.play().catch(() => toast("播放失败 Can't play"));
+}
+
 const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心 Happy"], ["sad", "失落 Sad"],
   ["rock", "出石头 ✊"], ["scissors", "出剪刀 ✌️"], ["paper", "出布 ✋"]];
 
@@ -228,23 +255,27 @@ function renderSettings() {
 
   const colorInp = (name, value) => h("label", {}, name.split(".").pop(), inp(name, value, { type: "color" }));
 
-  const mediaRows = MEDIA_STATES.map(([state, label]) => {
-    const url = inp(`media.${state}`, val(["character", "media", state]), { type: "text", placeholder: "（空 = 内置卡通 / built-in）" });
-    const file = h("input", { type: "file", accept: "video/mp4,video/webm,image/gif,image/webp,image/png", hidden: true,
-      onchange: async () => {
-        const f = file.files[0]; if (!f) return;
-        if (f.size > 20 * 1024 * 1024) return toast("文件太大（最大 20MB）File too large (max 20MB)");
-        const ext = (f.name.split(".").pop() || "bin").toLowerCase();
-        const path = `${cur.id}/${state}-${Date.now()}.${ext}`;
-        toast("上传中… Uploading…", 60000);
-        const { error } = await sb.storage.from("assets").upload(path, f, { contentType: f.type, upsert: false, cacheControl: "31536000" });
-        if (error) return toast("上传失败 " + error.message);
-        url.value = sb.storage.from("assets").getPublicUrl(path).data.publicUrl;
-        toast("已上传，记得保存 Uploaded — remember to Save");
-      } });
-    return h("div", { class: "media-row" }, h("span", {}, label), url,
-      h("span", {}, h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
-  });
+  // 一行素材：网址 + 上传按钮（声音多一个试听）
+  const assetRow = (name, label, value, accept, placeholder, listen) => {
+    const url = inp(name, value, { type: "text", placeholder });
+    const file = h("input", { type: "file", accept, hidden: true, onchange: async () => {
+      const f = file.files[0]; if (!f) return;
+      const u = await uploadAsset(f, name.split(".").pop());
+      if (u) url.value = u;
+    } });
+    return h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" },
+      listen && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
+      h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
+  };
+  const mediaRows = MEDIA_STATES.map(([state, label]) => assetRow(`media.${state}`, label, val(["character", "media", state]),
+    "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 内置卡通 / built-in）"));
+  const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
+    "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", true));
+  const volume = (name, label, value) => {
+    const out = h("b", {}, value + "%");
+    return h("label", {}, label, " ", out,
+      inp(name, value, { type: "range", min: 0, max: 100, step: 5, oninput: (e) => (out.textContent = e.target.value + "%") }));
+  };
 
   form.replaceChildren(
     h("fieldset", {}, h("legend", {}, "基本 Basics"), h("div", { class: "grid2" },
@@ -274,6 +305,11 @@ function renderSettings() {
       h("h3", {}, "内置卡通颜色 Built-in character colors"),
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
         colorInp(`skin.${k}`, val(["character", "skin", k], { outfit: "#e74c3c", outfitDark: "#c0392b", hair: "#2c2c2c", skin: "#ffe0bd" }[k]))))),
+    h("fieldset", {}, h("legend", {}, "声音 Sounds"),
+      h("p", { class: "hint" }, "上传 mp3 / m4a 等音频（最大 20MB），每一项都可以留空。「背景音乐」待机时循环播放；「游戏音乐」猜拳时循环播放，没上传就继续放背景音乐。玩的时候音乐会自动调小一半，听得清角色说话。「赢了 / 输了 / 平手 / 拍照」是音效，到那一刻播一次。点了「启动」之后才会出声。"),
+      soundRows,
+      h("div", { class: "grid2" }, volume("musicVolume", "音乐音量 Music", c.musicVolume ?? 30),
+        volume("sfxVolume", "音效音量 Sound effects", c.sfxVolume ?? 80))),
     h("div", { class: "row" }, h("button", { type: "submit" }, "保存 Save"),
       h("a", { class: "btn ghost", target: "_blank", href: kioskUrl(false) }, "预览互动屏 Preview")),
   );
@@ -311,6 +347,9 @@ async function saveSettings(base, form, prizeBody) {
     skin: Object.fromEntries(["outfit", "outfitDark", "hair", "skin"].map((k) => [k, f(`skin.${k}`)])),
     media: Object.fromEntries(MEDIA_STATES.map(([s]) => [s, f(`media.${s}`)])),
   };
+  c.sounds = Object.fromEntries(SOUNDS.map(([k]) => [k, f(`sounds.${k}`)]));
+  c.musicVolume = Number(f("musicVolume"));
+  c.sfxVolume = Number(f("sfxVolume"));
   const { error } = await sb.from("stores").update({ config: c, updated_at: new Date().toISOString() }).eq("id", cur.id);
   if (error) return toast("保存失败 Save failed: " + error.message);
   cur.config = c;

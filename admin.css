@@ -78,6 +78,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 #qr img { background: #fff; padding: 8px; border-radius: 8px; }
 .media-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
 .media-row input[type=text] { margin: 0; }
+.row-btns { display: flex; gap: 6px; }
 .msg { color: var(--bad); min-height: 1.5em; }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg);
   padding: 10px 18px; border-radius: 10px; z-index: 10; max-width: calc(100vw - 32px); }
