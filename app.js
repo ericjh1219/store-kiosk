@@ -41,14 +41,18 @@ function setLang(l) {
 }
 $("langBtn").onclick = () => setLang(S.languages[(S.languages.indexOf(lang) + 1) % S.languages.length]);
 
-// 全屏：浏览器网址栏还在时左下角显示「全屏」按钮（摄像头授权弹窗、返回键、重新载入都会退出全屏）
-const goFull = () => document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+// 全屏：没全屏时左下角显示「全屏」按钮（摄像头授权弹窗、返回键、重新载入都会退出全屏）
+// 旧版安卓浏览器 / iPad 只有 webkit 开头的写法
+const root = document.documentElement;
+function goFull() {
+  try { (root.requestFullscreen || root.webkitRequestFullscreen).call(root, { navigationUI: "hide" })?.catch?.(() => {}); } catch {}
+}
 const fsSync = () => {
-  $("fsBtn").hidden = !document.fullscreenEnabled || !!document.fullscreenElement
-    || innerHeight >= screen.height - 4;   // Fully Kiosk 等已经占满整个屏幕时不用显示
+  $("fsBtn").hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled)
+    || !!(document.fullscreenElement || document.webkitFullscreenElement);
 };
 $("fsBtn").onclick = goFull;
-document.addEventListener("fullscreenchange", fsSync); addEventListener("resize", fsSync); fsSync();
+document.addEventListener("fullscreenchange", fsSync); document.addEventListener("webkitfullscreenchange", fsSync); fsSync();
 
 // ---------- 后端（Supabase） ----------
 const params = new URLSearchParams(location.search);
@@ -139,6 +143,7 @@ async function start() {
   sb.dataset.busy = 1; sb.textContent = U().loading;
   try {
     goFull();
+    $("charVideo").muted = false;   // 点了启动之后浏览器才允许有声音播放
     cam.srcObject = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
     await cam.play();
