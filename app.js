@@ -262,11 +262,11 @@ async function runSession() {
   await speak(T().invite, 1800);
 
   logEvent("play");
-  // 平手重来，直到分出输赢；连续 2 次没认出手就结束（人走了也是这样结束）；连续平手 6 次算输（送安慰奖）
-  // 玩的过程中不再用「看不到脸」判断离开：举手出拳、看角色动画时脸常常被挡住
-  for (let misses = 0, draws = 0; misses < 2;) {
+  // 平手重来，直到分出输赢；没认出手就一直重新问，连续 maxMisses 次都没认出才结束（人走了也是这样结束）；连续平手 6 次算输（送安慰奖）
+  // 玩的过程中不用「看不到脸」判断离开：举手出拳、看角色动画时脸常常被挡住
+  for (let misses = 0, draws = 0; misses < C.maxMisses;) {
     const you = await playRound();
-    if (!you) { if (++misses < 2) await speak(T().noHand, 1800); continue; }
+    if (!you) { if (++misses < C.maxMisses) await speak(T().noHand, 1800); continue; }
     misses = 0;
     const bot = pick(Object.keys(ICON));
     await playThrow(bot);
