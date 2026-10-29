@@ -200,7 +200,8 @@ async function runSession(byTap = false) {
     if (!you) { misses++; await speak(T().noHand, 1800); continue; }
     const bot = pick(Object.keys(ICON));
     $("botHand").textContent = ICON[bot];
-    if (you === bot && ++draws < 6) { await speak(T().draw, 1800); continue; }
+    await playThrow(bot);
+    if (you === bot && ++draws < 6) { await speak(T().draw, 1800); playVideo("idle"); continue; }
     const won = you !== bot && BEATS[you] === bot;
     setMood(won ? "happy" : "sad"); playVideo(won ? "happy" : "sad");
     await speak(won ? T().win : T().lose, 1800);
@@ -405,6 +406,19 @@ function playVideo(name) {
   v.hidden = !isVideo; img.hidden = isVideo;
   if (isVideo) { if (!v.src.endsWith(src)) { v.src = src; v.play().catch(() => {}); } }
   else if (!img.src.endsWith(src)) img.src = src;
+}
+
+// 角色出拳动画（店家上传了才播）：播一次，最多等 3 秒
+async function playThrow(move) {
+  const src = S.character?.media?.[move];
+  if (!src) return;
+  const v = $("charVideo");
+  playVideo(move);
+  if (/\.(mp4|webm|mov)(\?|$)/i.test(src)) {
+    v.loop = false; v.currentTime = 0; v.play().catch(() => {});
+    await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(3000)]);
+    v.loop = true;
+  } else await sleep(1800);   // 动图没有结束事件，按时间等
 }
 
 function applySkin() {

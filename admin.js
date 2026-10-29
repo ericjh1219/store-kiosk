@@ -191,7 +191,8 @@ const LINE_FIELDS = [
   ["draw", "平手 Draw"], ["noHand", "没看到手 No hand seen"], ["bye", "再见 Goodbye"],
 ];
 const LANG_NAMES = { zh: "中文", en: "English" };
-const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心 Happy"], ["sad", "失落 Sad"]];
+const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心 Happy"], ["sad", "失落 Sad"],
+  ["rock", "出石头 ✊"], ["scissors", "出剪刀 ✌️"], ["paper", "出布 ✋"]];
 
 function renderSettings() {
   if (!cur) return;
@@ -268,7 +269,7 @@ function renderSettings() {
       colorInp("theme.primary", c.theme.primary || "#4a160f"), colorInp("theme.accent", c.theme.accent || "#f5d68a"),
       colorInp("theme.bg", c.theme.bg || "#6b2d1e"))),
     h("fieldset", {}, h("legend", {}, "角色动画 Character"),
-      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB）。只上传「待机」也可以。没有上传就用内置卡通角色，可改下面的颜色。"),
+      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB）。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的短动画（1–2 秒，播一次），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
       mediaRows,
       h("h3", {}, "内置卡通颜色 Built-in character colors"),
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
