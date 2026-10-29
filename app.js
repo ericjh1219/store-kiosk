@@ -189,7 +189,7 @@ async function runSession(byTap = false) {
   logEvent("visit");
   setMood("wave"); playVideo("wave");
   await speak(pick(T().welcome), 2200);
-  setMood("");
+  setMood(""); playVideo("idle");
   await speak(T().invite, 1800);
 
   logEvent("play");
