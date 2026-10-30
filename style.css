@@ -51,7 +51,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
   max-width: 86vw; padding: 1.4vh 4.5vh; border-radius: 5vh; margin-bottom: 8vh; cursor: pointer;
   box-shadow: 0 1vh 3vh #0008, 0 0 0 .5vh #ffffff33; animation: breathe 2.4s ease-in-out infinite; }
 #hint:empty { display: none; }
-#hint.again { display: flex; align-items: center; gap: 1.2vh; }
+#hint.again:not(:empty) { display: flex; align-items: center; gap: 1.2vh; }   /* 再玩一次的时候字清空了，按钮要跟着收起来 */
 #hint .tap { width: 5.2vh; height: 5.2vh; margin: -.6vh 0; flex: none; overflow: visible; }
 #hint .finger { animation: tap 1.4s ease-in-out infinite; }
 #hint .ripple { animation: ripple 1.4s ease-out infinite; transform-origin: 12px 6.6px; }
@@ -127,4 +127,22 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
   box-shadow: 0 .6vh 2vh #0006; }
 #timer:not(:empty) ~ #sign { visibility: hidden; }
 #photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 52vw; }
+/* 拍照背景框：整张背景完整显示（屏幕比例不同时两边用模糊的背景补上），镜头画面放在挖空的窗口 */
+#frameView { position: absolute; inset: 0; overflow: hidden; background: #000; }
+#frameView::before { content: ""; position: absolute; inset: -6vh; background: var(--frame) center / cover;
+  filter: blur(3vh) brightness(.6); }
+#frameBox { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); aspect-ratio: var(--ar);
+  width: min(100vw, calc(100vh * var(--ar))); width: min(100vw, calc(100dvh * var(--ar))); }
+#frameImg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#frameCam, #finder, #frameCount { position: absolute; left: var(--wx); top: var(--wy); width: var(--ww); height: var(--wh); }
+#frameCam { object-fit: cover; transform: scaleX(-1); background: #000; }
+/* 取景框四个角（在背景框下面，所以会被前面的角色挡住） */
+#finder { --c: linear-gradient(#fffe, #fffe); --t: .45vh; background:
+  var(--c) left 5% top 7% / 9% var(--t), var(--c) left 5% top 7% / var(--t) 11%,
+  var(--c) right 5% top 7% / 9% var(--t), var(--c) right 5% top 7% / var(--t) 11%,
+  var(--c) left 5% bottom 7% / 9% var(--t), var(--c) left 5% bottom 7% / var(--t) 11%,
+  var(--c) right 5% bottom 7% / 9% var(--t), var(--c) right 5% bottom 7% / var(--t) 11%;
+  background-repeat: no-repeat; }
+#frameCount { display: flex; align-items: center; justify-content: center; font-size: 18vh; font-weight: 800;
+  color: #fff; text-shadow: 0 0 4vh #000; pointer-events: none; }
 #photoQr:empty + .share-side { align-items: center; text-align: center; }

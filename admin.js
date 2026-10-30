@@ -224,7 +224,10 @@ const SOUND_SETS = [
   ["游戏机 8-bit", { bgm: "bgm-lofi", game: "game-8bit", win: "win-coins", lose: "lose-slide", draw: "draw-boop", photo: "photo-flash" }],
 ];
 const tplUrl = (id) => `sounds/${id}.mp3`;
-const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm" };
+// 拍照背景框模版：放在网站的 frames/ 里，中间镜头位置是透明的
+const FRAME_TEMPLATES = [["frames/premo-studio.webp", "PREMO Studio 花艺摄影棚"]];
+const WHATSAPP_LINK = /^https:\/\/(chat\.whatsapp\.com|wa\.me|(www\.)?whatsapp\.com)\//;
+const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm", png: "image/png", webp: "image/webp" };
 
 // 上传到 assets/<店铺ID>/，文件名带时间戳（所以可以让浏览器长期缓存）
 async function uploadAsset(f, name) {
@@ -290,9 +293,10 @@ function renderSettings() {
   // 一行素材：网址 + 上传按钮（声音多一个「选模版」和试听）
   const assetRow = (name, label, value, accept, placeholder, templates, extra) => {
     const url = inp(name, value, { type: "text", placeholder });
-    const pick = templates && h("select", { class: "tpl", onchange: () => { if (pick.value) { url.value = pick.value; preview(pick.value); } } },
-      h("option", { value: "" }, "选模版…"), templates.map(([id, l]) => h("option", { value: tplUrl(id), selected: tplUrl(id) === value }, l)));
-    const set = (v) => { url.value = v; if (pick) pick.value = templates.some(([id]) => tplUrl(id) === v) ? v : ""; };
+    const audio = accept.startsWith("audio");   // 声音才有试听
+    const pick = templates && h("select", { class: "tpl", onchange: () => { if (pick.value) { url.value = pick.value; if (audio) preview(pick.value); } } },
+      h("option", { value: "" }, "选模版…"), templates.map(([u, l]) => h("option", { value: u, selected: u === value }, l)));
+    const set = (v) => { url.value = v; if (pick) pick.value = templates.some(([u]) => u === v) ? v : ""; };
     url.addEventListener("input", () => set(url.value.trim()));
     const file = h("input", { type: "file", accept, hidden: true, onchange: async () => {
       const f = file.files[0]; if (!f) return;
@@ -300,7 +304,7 @@ function renderSettings() {
       if (u) set(u);
     } });
     const row = h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" }, pick,
-      templates && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
+      audio && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
       extra, h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
     row.set = set;
     return row;
@@ -310,7 +314,8 @@ function renderSettings() {
     h("label", { class: "inline mute", title: "这段动画播放时不出声 Mute this clip" },
       h("input", { type: "checkbox", name: `mute.${state}`, checked: !!val(["character", "mute", state], false) }), "🔇 关原声")));
   const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
-    "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", SOUND_TEMPLATES[k]));
+    "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", SOUND_TEMPLATES[k].map(([id, l]) => [tplUrl(id), l])));
+  const frameRow = assetRow("photoFrame", "拍照背景框", val(["photoFrame"]), "image/png,image/webp", "（空 = 普通拍照画面）", FRAME_TEMPLATES);
   const applySet = (set) => {
     SOUNDS.forEach(([k], i) => soundRows[i].set(tplUrl(set[k])));
     toast("已套用，记得保存 Applied — remember to Save");
@@ -356,6 +361,11 @@ function renderSettings() {
       h("h3", {}, "内置卡通颜色 Built-in character colors"),
       h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
         colorInp(`skin.${k}`, val(["character", "skin", k], { outfit: "#e74c3c", outfitDark: "#c0392b", hair: "#2c2c2c", skin: "#ffe0bd" }[k]))))),
+    h("fieldset", {}, h("legend", {}, "合照 Photo"),
+      h("p", { class: "hint" }, "「拍照背景框」是拍照时整个屏幕的画面：上传一张竖版 PNG / WebP（建议 1080×1920），中间放镜头画面的地方要挖空（透明），镜头画面会自动放进挖空的地方，照片也会连背景框一起保存。留空就是普通拍照画面。"),
+      frameRow,
+      h("label", {}, "WhatsApp 社群链接（填了的话，顾客扫码后要先加入社群才看得到照片）WhatsApp community link",
+        inp("whatsapp", val(["whatsapp"]), { type: "url", placeholder: "https://chat.whatsapp.com/…" }))),
     h("fieldset", {}, h("legend", {}, "声音 Sounds"),
       h("div", { class: "row" }, "一键套用整套 Apply a set：",
         SOUND_SETS.map(([label, set]) => h("button", { type: "button", class: "ghost small", onclick: () => applySet(set) }, label))),
@@ -378,6 +388,9 @@ async function saveSettings(base, form, prizeBody) {
   c.storeName = Object.fromEntries(["zh", "en"].map((l) => [l, f(`storeName.${l}`)]).filter(([, v]) => v));
   c.codeValidDays = Math.max(1, parseInt(f("codeValidDays")) || 7);
   c.photo = form.elements.photo.checked;
+  c.photoFrame = f("photoFrame");
+  c.whatsapp = f("whatsapp");
+  if (c.whatsapp && !WHATSAPP_LINK.test(c.whatsapp)) return toast("WhatsApp 链接要以 https://chat.whatsapp.com/ 开头 Invalid WhatsApp link", 4000);
   c.attract = form.elements.attract.checked;
   c.attractGap = Math.min(600, Math.max(10, parseInt(f("attractGap")) || 30));
   c.lines = {};

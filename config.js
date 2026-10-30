@@ -33,12 +33,12 @@ window.APP_CONFIG = {
           you: "你", me: "我", countdown: ["石头", "剪刀", "布！"], claim: "请截图或出示此画面给店员领取", again: "点我再玩一次",
           photoAsk: "要不要和我拍张合照？", photoYes: "📸 拍合照", photoNo: "不用了", photoLook: "看镜头！",
           photoScan: "用手机扫码保存照片（24 小时后自动删除）", photoFail: "照片没上传成功，可以直接用手机拍屏幕哦", done: "完成", closeIn: "{n} 秒后自动关闭",
-          attract: "嘿～进来坐坐吧！和我猜拳赢小礼品！" },
+          attract: "嘿～进来坐坐吧！和我猜拳赢小礼品！", photoScanJoin: "扫码加入我们的 WhatsApp 社群，领取照片（24 小时内有效）" },
     en: { start: "Tap to start", fullscreen: "Full screen", lock: "Lock", lockTip: "Locked 🔒 To unlock, hold the top-left corner for 3 seconds", fsTip: "iPad / iPhone: open in Safari, tap Share → Add to Home Screen, then open it from the Home Screen", loading: "Loading…", startFail: "Failed to start (needs HTTPS + camera): ",
           you: "You", me: "Me", countdown: ["Rock", "Paper", "Scissors!"], claim: "Show this screen to our staff to claim", again: "Press me",
           photoAsk: "Want a photo with me?", photoYes: "📸 Take a photo", photoNo: "No thanks", photoLook: "Look at the camera!",
           photoScan: "Scan to save your photo (deleted after 24 hours)", photoFail: "Upload failed — just snap the screen with your phone!", done: "Done", closeIn: "Closing in {n}s",
-          attract: "Hey there! Come on in and win a gift!" },
+          attract: "Hey there! Come on in and win a gift!", photoScanJoin: "Scan to join our WhatsApp community and get your photo (valid 24 hours)" },
   },
 
   // MediaPipe 模型地址（可改成本地路径，见 README）

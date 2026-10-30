@@ -22,6 +22,7 @@ let tapMove = null;            // 触屏出拳（识别失败时的备用）
 let personDetector = null;     // 认远处的人（招揽路人用），启动后在背景下载
 let attracting = false, nextAttract = 0;   // 正在招揽 / 下次最早什么时候可以再招揽
 let passHistory = [], passHits = 0, lastPassCheck = 0, people = 0;
+let frame = null, frameSrc = "";   // 拍照背景框：{ img, ar, x, y, w, h }（窗口位置是整张图的比例）
 const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
 // 声音：先建好 Web Audio（静音状态），点了「启动」才开始出声
 const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
@@ -192,6 +193,7 @@ function applyStore(cfg) {
   applySkin();
   preloadMedia();
   preloadSounds();
+  loadFrame(S.photoFrame || "");
   syncMusic();
   playVideo("idle");
   setLang(S.languages[0]);
@@ -454,19 +456,29 @@ async function askPhoto() {
 }
 
 async function takePhoto() {
-  const cv = $("photoCanvas"), view = $("photo"), count = $("photoCount");
-  const art = await characterArt();
-  cv.width = 960; cv.height = 1280;   // 竖版 3:4
+  const cv = $("photoCanvas"), view = $("photo"), f = frame;   // f：店家设的拍照背景框
+  const count = f ? $("frameCount") : $("photoCount");
+  const art = f ? null : await characterArt();
   $("photoShare").classList.add("hidden");
   view.classList.remove("hidden", "sharing");
+  $("photoFrame").classList.toggle("hidden", !!f);
+  $("frameView").classList.toggle("hidden", !f);
 
   let live = true;   // 倒数时实时预览
-  (function draw() { if (live) { composePhoto(cv, art, true); requestAnimationFrame(draw); } })();
+  if (f) showFrame(f);
+  else {
+    cv.width = 960; cv.height = 1280;   // 竖版 3:4
+    (function draw() { if (live) { composePhoto(cv, art, true); requestAnimationFrame(draw); } })();
+  }
   say(U().photoLook); count.textContent = "";
   await sleep(1500);
   for (const n of ["3", "2", "1"]) { count.textContent = n; say(n); await sleep(1000); }
   count.textContent = ""; live = false;
-  composePhoto(cv, art, false);   // 存下来的照片不镜像，招牌和衣服上的字才是正的
+  // 存下来的照片不镜像，招牌和衣服上的字才是正的
+  if (f) {
+    composeFramed(cv, f);
+    $("frameView").classList.add("hidden"); $("frameCam").srcObject = null; $("photoFrame").classList.remove("hidden");
+  } else composePhoto(cv, art, false);
   view.classList.add("flash"); setTimeout(() => view.classList.remove("flash"), 500); playSfx("photo");
 
   const msg = $("photoMsg"), qrBox = $("photoQr");
@@ -477,7 +489,7 @@ async function takePhoto() {
     const id = await rpc("kiosk_photo", { p_store: storeId, p_key: deviceKey, p_data: data });
     const qr = qrcode(0, "M"); qr.addData(new URL(`photo.html?id=${id}`, location.href).href); qr.make();
     qrBox.innerHTML = qr.createImgTag(6, 8);
-    msg.textContent = U().photoScan;
+    msg.textContent = S.whatsapp ? U().photoScanJoin : U().photoScan;
   } catch (e) { console.warn("photo upload failed", e); msg.textContent = U().photoFail; }
   $("photoDone").textContent = U().done;
   $("photoShare").classList.remove("hidden"); view.classList.add("sharing");
@@ -533,6 +545,51 @@ function composePhoto(cv, art, mirror) {
   g.textAlign = "left"; g.fillText(tr(S.storeName), W * 0.04, H - band / 2);
   g.font = `${Math.round(band * 0.3)}px sans-serif`;
   g.textAlign = "right"; g.fillText(new Date().toLocaleDateString(lang === "zh" ? "zh-CN" : "en-MY"), W * 0.96, H - band / 2);
+}
+
+// ---------- 拍照背景框 ----------
+// 店家上传一张背景图，中间镜头的位置挖空（透明）。先整张下载、找出挖空的范围，拍照时镜头画面就放在那里
+async function loadFrame(src) {
+  if (src === frameSrc) return;
+  frameSrc = src; frame = null;
+  if (!src) return;
+  try {
+    const img = new Image();
+    img.src = URL.createObjectURL(await (await fetch(src)).blob());   // 转成本机网址，合成照片时画布才不会被锁住
+    await img.decode();
+    const w = 432, h = Math.round((w * img.naturalHeight) / img.naturalWidth);
+    const g = Object.assign(document.createElement("canvas"), { width: w, height: h }).getContext("2d");
+    g.drawImage(img, 0, 0, w, h);
+    const a = g.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (a[(y * w + x) * 4 + 3] < 128) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    }
+    if (x1 < 0) return console.warn("photo frame has no transparent window", src);
+    if (frameSrc !== src) return;   // 下载期间设置又换了
+    // 往外多放 1 格，镜头画面垫在背景框边缘下面，不会露出缝
+    x0 = Math.max(0, x0 - 1); y0 = Math.max(0, y0 - 1); x1 = Math.min(w - 1, x1 + 1); y1 = Math.min(h - 1, y1 + 1);
+    frame = { img, ar: img.naturalWidth / img.naturalHeight, x: x0 / w, y: y0 / h, w: (x1 - x0 + 1) / w, h: (y1 - y0 + 1) / h };
+  } catch (e) { console.warn("photo frame failed", src, e); }
+}
+
+function showFrame(f) {
+  const box = $("frameBox"), fc = $("frameCam");
+  $("frameView").style.setProperty("--frame", `url("${f.img.src}")`);
+  box.style.setProperty("--ar", f.ar);
+  for (const k of ["x", "y", "w", "h"]) box.style.setProperty("--w" + k, f[k] * 100 + "%");
+  $("frameImg").src = f.img.src;
+  fc.srcObject = cam.srcObject; fc.play().catch(() => {});
+}
+
+// 合成：镜头画面裁满窗口，再把背景框盖上去（整张图原尺寸）
+function composeFramed(cv, f) {
+  const W = (cv.width = f.img.naturalWidth), H = (cv.height = f.img.naturalHeight), g = cv.getContext("2d");
+  const wx = f.x * W, wy = f.y * H, ww = f.w * W, wh = f.h * H;
+  const vw = cam.videoWidth, vh = cam.videoHeight, k = Math.min(vw / ww, vh / wh);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  g.drawImage(cam, (vw - ww * k) / 2, (vh - wh * k) / 2, ww * k, wh * k, wx, wy, ww, wh);
+  g.drawImage(f.img, 0, 0, W, H);
 }
 
 // 上方倒数计时「n 秒后自动关闭」：时间到或调用 stop() 就结束（done 完成）
