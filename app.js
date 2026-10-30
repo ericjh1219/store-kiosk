@@ -1,4 +1,4 @@
-import { FilesetResolver, FaceDetector, GestureRecognizer }
+import { FilesetResolver, FaceDetector, GestureRecognizer, ObjectDetector }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 const C = window.APP_CONFIG;
@@ -19,6 +19,9 @@ let videoSound = false;         // 点了启动后角色视频才出声（后台
 let needLeave = false;          // 刚玩过的人还在镜头前：不自动再开，点角色才再玩
 let gestureSeen = null;       // 出拳窗口内每帧认出的手势（按顺序）
 let tapMove = null;            // 触屏出拳（识别失败时的备用）
+let personDetector = null;     // 认远处的人（招揽路人用），启动后在背景下载
+let attracting = false, nextAttract = 0;   // 正在招揽 / 下次最早什么时候可以再招揽
+let passHistory = [], passHits = 0, lastPassCheck = 0, people = 0;
 const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
 // 声音：先建好 Web Audio（静音状态），点了「启动」才开始出声
 const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
@@ -213,6 +216,11 @@ async function start() {
       baseOptions: { modelAssetPath: C.mediapipe.face, delegate: "GPU" }, runningMode: "VIDEO" });
     gestureRecognizer = await GestureRecognizer.createFromOptions(fs, {
       baseOptions: { modelAssetPath: C.mediapipe.gesture, delegate: "GPU" }, runningMode: "VIDEO", numHands: 1 });
+    // 招揽路人用的模型不挡住启动：下载好了才开始招揽，下载失败就只是没有招揽
+    ObjectDetector.createFromOptions(fs, {
+      baseOptions: { modelAssetPath: C.mediapipe.person, delegate: "CPU" }, runningMode: "VIDEO",
+      categoryAllowlist: ["person"], scoreThreshold: 0.4, maxResults: 5,
+    }).then((d) => (personDetector = d)).catch((e) => console.warn("person detector failed", e));
   } catch (e) {
     sb.textContent = U().startFail + e.message;
     return;
@@ -246,7 +254,9 @@ function loop() {
       }
     }
     onTick();
-    $("dbgText").textContent = `store=${storeId} lang=${lang}\nstate=${state}\nfaces=${faces.length} present=${!!presentSince}\ngesture=${g}`;
+    if (canAttract()) watchPassers(now); else { passHistory = []; passHits = 0; }
+    $("dbgText").textContent = `store=${storeId} lang=${lang}\nstate=${state}\nfaces=${faces.length} present=${!!presentSince}\n` +
+      `gesture=${g}\npeople=${people} attract=${attracting ? "on" : Math.max(0, Math.ceil((nextAttract - Date.now()) / 1000)) + "s"}`;
   }
 }
 
@@ -257,6 +267,42 @@ function onTick() {
   // 「点我再玩一次」的时间过了（人走了，也过了冷却时间）：换回招呼语，语言回到默认，等下一位顾客
   if (state === "idle" && !needLeave && t > cooldownUntil && hint.classList.contains("again")) { setLang(S.languages[0]); idleHint(); }
   if (state === "idle" && !needLeave && presentSince && t - presentSince > C.presenceMs && t > cooldownUntil) runSession();
+}
+
+// ---------- 招揽路人 ----------
+// 待机时远处有人走过：播「招揽」动画（没有就用挥手）、说一句招呼语，吸引客人进店；走近了就照常开始玩
+// 刚玩完的人还在、已经有人站在前面、两次招揽间隔没到，都不招揽
+const canAttract = () => personDetector && S.attract !== false && state === "idle" && !attracting && !needLeave
+  && !presentSince && Date.now() > Math.max(cooldownUntil, nextAttract);
+
+// 每 0.4 秒看一次画面里的人，和前 1 秒内的位置比较：有人移动了（或新走进画面）连续两次，才算有人走过
+// 坐着不动的客人位置不变，不会一直触发
+function watchPassers(now) {
+  if (now - lastPassCheck < 400) return;
+  lastPassCheck = now;
+  const W = cam.videoWidth, H = cam.videoHeight;
+  const spots = personDetector.detectForVideo(cam, now).detections.map((d) => d.boundingBox)
+    .filter((b) => b.height / H >= C.attractMinHeight)
+    .map((b) => [(b.originX + b.width / 2) / W, (b.originY + b.height / 2) / H]);
+  people = spots.length;
+  const before = passHistory.flat();
+  const moved = spots.some(([x, y]) => before.every(([px, py]) => Math.hypot(x - px, y - py) >= C.attractMove));
+  passHistory = [spots, ...passHistory].slice(0, 3);
+  passHits = moved ? passHits + 1 : 0;
+  if (passHits >= 2) attract();
+}
+
+async function attract() {
+  attracting = true; passHits = 0;
+  nextAttract = Date.now() + (S.attractGap || 30) * 1000;
+  const media = S.character?.media || {}, clip = media.attract ? "attract" : media.wave ? "wave" : null;
+  const line = T().attract ?? U().attract;
+  if (line) speak(line, 0);
+  if (clip) await playOnce(clip, 10000);
+  else { setMood("wave"); await sleep(3500); }
+  attracting = false;
+  if (state !== "idle") return;   // 招揽的时候有人走近，已经开始玩了
+  setMood(""); playVideo("idle"); bubble.classList.add("hidden");
 }
 
 // 点角色也能开始（同一个人想再玩，或摄像头没认出人）
@@ -586,24 +632,27 @@ function playVideo(name) {
   v.hidden = !isVideo; img.hidden = isVideo;
   if (!isVideo) v.pause();
   const el = isVideo ? v : img;
-  if (isVideo) { v.dataset.key = key; v.muted = !videoSound || !!S.character?.mute?.[key]; }
+  if (isVideo) { v.dataset.key = key; v.muted = !videoSound || !!S.character?.mute?.[key]; v.loop = true; }   // 默认循环，只播一次的由 playOnce 改
   if (el.dataset.src !== src) { el.dataset.src = src; el.src = mediaCache[src] || src; }
   if (isVideo) v.play().catch(() => {});   // 从动图换回同一段视频时，要接着播
 }
 
 // 角色出拳动画（店家上传了才播）：整段播完再出结果（最多等 8 秒），播的时候先收起猜拳画面，不挡住角色
 async function playThrow(move) {
-  const src = S.character?.media?.[move];
-  if (!src) return;
-  const v = $("charVideo");
+  if (!S.character?.media?.[move]) return;
   $("game").classList.add("hidden");
-  playVideo(move);
-  if (/\.(mp4|webm|mov)(\?|$)/i.test(src)) {
-    v.loop = false; v.currentTime = 0; v.play().catch(() => {});
-    await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(8000)]);
-    v.loop = true;
-  } else await sleep(1800);   // 动图没有结束事件，按时间等
+  await playOnce(move, 8000);
   $("game").classList.remove("hidden");
+}
+
+// 某段动画从头播一次（最多等 maxMs）；动图没有结束事件，按时间等
+async function playOnce(name, maxMs) {
+  const src = S.character?.media?.[name], v = $("charVideo");
+  playVideo(name);
+  if (!/\.(mp4|webm|mov)(\?|$)/i.test(src)) return sleep(1800);
+  v.loop = false; v.currentTime = 0; v.play().catch(() => {});
+  await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(maxMs)]);
+  if (v.dataset.src === src) v.loop = true;   // 等的期间已经换成别段动画（例如招揽时开始玩了），就不要动它
 }
 
 function applySkin() {

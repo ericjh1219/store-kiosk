@@ -204,6 +204,7 @@ const LINE_FIELDS = [
   ["slogan", "待机招揽语 Idle slogan"], ["welcome", "欢迎语（每行一句，随机）Welcome lines, one per line", "multi"],
   ["invite", "邀请猜拳 Invite"], ["win", "顾客赢 Customer wins"], ["lose", "顾客输 Customer loses"],
   ["draw", "平手 Draw"], ["noHand", "没看到手 No hand seen"], ["bye", "再见 Goodbye"],
+  ["attract", "有人经过时的招呼（留空 = 只播动画不说话）Passer-by call-out (optional)", "", "optional"],
 ];
 const LANG_NAMES = { zh: "中文", en: "English" };
 // 声音：音乐循环播放，音效播一次
@@ -248,7 +249,7 @@ function preview(src) {
   previewAudio.play().catch(() => toast("播放失败 Can't play"));
 }
 
-const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["happy", "开心（角色赢）"], ["sad", "失落（角色输）"],
+const MEDIA_STATES = [["idle", "待机 Idle"], ["wave", "挥手 Wave"], ["attract", "招揽（有人经过，没有就用挥手）"], ["happy", "开心（角色赢）"], ["sad", "失落（角色输）"],
   ["rock", "出石头 ✊"], ["scissors", "出剪刀 ✌️"], ["paper", "出布 ✋"]];
 
 function renderSettings() {
@@ -268,7 +269,7 @@ function renderSettings() {
     h("legend", {}, `台词 Lines — ${LANG_NAMES[lang]}`),
     LINE_FIELDS.map(([k, label, multi]) => h("label", {}, label,
       multi ? h("textarea", { name: `lines.${lang}.${k}` }, (val(["lines", lang, k], []) || []).join("\n"))
-            : inp(`lines.${lang}.${k}`, val(["lines", lang, k]))))));
+            : inp(`lines.${lang}.${k}`, val(["lines", lang, k], C.ui[lang][k] ?? ""))))));   // 新增的台词先填上默认句子
   const syncLangs = () => {
     const on = langSel.value.split(",");
     lineSets.forEach((fs) => (fs.style.display = on.includes(fs.dataset.lang) ? "" : "none"));
@@ -328,6 +329,10 @@ function renderSettings() {
       h("label", {}, "领奖码有效天数 Code valid days", inp("codeValidDays", c.codeValidDays ?? 7, { type: "number", min: 1, max: 365 })),
       h("label", { class: "inline" }, h("input", { type: "checkbox", name: "photo", checked: c.photo !== false }),
         "玩完后可以和角色合照（扫码下载，24 小时后删除）Photo with character"),
+      h("label", { class: "inline" }, h("input", { type: "checkbox", name: "attract", checked: c.attract !== false }),
+        "有人从前面走过时，播「招揽」动画招呼进店 Call out to passers-by"),
+      h("label", {}, "招揽间隔（秒）同一段时间最多招呼一次 Min. seconds between call-outs",
+        inp("attractGap", c.attractGap ?? 30, { type: "number", min: 10, max: 600 })),
       h("p", { class: "hint" }, cur.ai_photo
         ? `✨ AI 卡通合照：已开通（每日最多 ${cur.ai_photo_daily} 张）`
         : "✨ AI 卡通合照：未开通（加购配套，请联系我们）"))),
@@ -373,13 +378,15 @@ async function saveSettings(base, form, prizeBody) {
   c.storeName = Object.fromEntries(["zh", "en"].map((l) => [l, f(`storeName.${l}`)]).filter(([, v]) => v));
   c.codeValidDays = Math.max(1, parseInt(f("codeValidDays")) || 7);
   c.photo = form.elements.photo.checked;
+  c.attract = form.elements.attract.checked;
+  c.attractGap = Math.min(600, Math.max(10, parseInt(f("attractGap")) || 30));
   c.lines = {};
   for (const lang of c.languages) {
     c.lines[lang] = {};
-    for (const [k, label, multi] of LINE_FIELDS) {
+    for (const [k, label, multi, optional] of LINE_FIELDS) {
       const v = f(`lines.${lang}.${k}`);
       c.lines[lang][k] = multi ? v.split("\n").map((s) => s.trim()).filter(Boolean) : v;
-      if (!v) return toast(`请填写 Please fill: ${LANG_NAMES[lang]} — ${label}`);
+      if (!v && !optional) return toast(`请填写 Please fill: ${LANG_NAMES[lang]} — ${label}`);
     }
     if (!c.storeName[lang]) return toast(`请填写店名 Store name (${LANG_NAMES[lang]})`);
   }
@@ -510,10 +517,10 @@ $("newStoreForm").addEventListener("submit", async (e) => {
 function newStoreTemplate(name, languages) {
   const lines = {
     zh: { slogan: "走近一点，和我猜个拳吧！", welcome: [`欢迎光临${name.zh}！`, "你好呀，欢迎欢迎！"], invite: "举起手，跟我猜拳赢小礼品！",
-          win: "哇，你赢了！", lose: "哈哈，我赢啦！送你一个安慰奖～", draw: "平手！再来一次！", noHand: "没看到你的手哦，再来一次～", bye: "欢迎下次再来！" },
+          win: "哇，你赢了！", lose: "哈哈，我赢啦！送你一个安慰奖～", draw: "平手！再来一次！", noHand: "没看到你的手哦，再来一次～", bye: "欢迎下次再来！", attract: C.ui.zh.attract },
     en: { slogan: "Come closer and play Rock Paper Scissors with me!", welcome: [`Welcome to ${name.en}!`, "Hello there, come on in!"],
           invite: "Raise your hand, beat me and win a gift!", win: "Wow, you win!", lose: "Haha, I win! Here's a little something anyway.",
-          draw: "It's a draw! One more time!", noHand: "I can't see your hand, let's try again!", bye: "See you next time!" },
+          draw: "It's a draw! One more time!", noHand: "I can't see your hand, let's try again!", bye: "See you next time!", attract: C.ui.en.attract },
   };
   return {
     storeName: Object.fromEntries(languages.map((l) => [l, name[l]])), languages,
