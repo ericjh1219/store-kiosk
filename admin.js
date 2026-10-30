@@ -90,10 +90,15 @@ async function boot(session) {
 }
 
 // 设备密钥不在这里读（员工没有权限看），店主要用时才用 store_device_key 取
-const STORE_COLS = "id, config, active, rental_until, ai_photo, ai_photo_daily, ai_photo_model";
+// 数据库还没更新到新版时，退回旧版有的栏位
+const STORE_COLS = ["id, config, active, rental_until, ai_photo, ai_photo_daily, ai_photo_model",
+  "id, config, active, rental_until, ai_photo, ai_photo_daily", "*"];
 async function loadStores(selectId) {
-  let { data, error } = await sb.from("stores").select(STORE_COLS).order("id");
-  if (error) ({ data, error } = await sb.from("stores").select("*").order("id"));   // 数据库还没更新到新版时的退路
+  let data, error;
+  for (const cols of STORE_COLS) {
+    ({ data, error } = await sb.from("stores").select(cols).order("id"));
+    if (!error) break;
+  }
   if (error) return toast(error.message);
   stores = data;
   const sel = $("storeSel");
