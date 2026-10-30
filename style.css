@@ -127,6 +127,8 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
   box-shadow: 0 .6vh 2vh #0006; }
 #timer:not(:empty) ~ #sign { visibility: hidden; }
 #photoMsg { color: var(--accent); font-size: 2.6vh; max-width: 52vw; }
+#photoAi { color: #fff; font-size: 2.6vh; font-weight: 700; max-width: 52vw; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
 /* 拍照背景框：整张背景完整显示（屏幕比例不同时两边用模糊的背景补上），镜头画面放在挖空的窗口 */
 #frameView { position: absolute; inset: 0; overflow: hidden; background: #000; }
 #frameView::before { content: ""; position: absolute; inset: -6vh; background: var(--frame) center / cover;

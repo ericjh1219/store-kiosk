@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="互动屏">
-  <link rel="stylesheet" href="style.css?v=20261030q">
+  <link rel="stylesheet" href="style.css?v=20261030s">
 </head>
 <body>
   <div id="stage">
@@ -71,7 +71,8 @@
         <img id="frameImg" alt=""><div id="frameCount"></div></div></div>
       <div id="photoFrame"><canvas id="photoCanvas"></canvas><div id="photoCount"></div></div>
       <div id="photoShare" class="hidden"><div id="photoQr"></div>
-        <div class="share-side"><div id="photoTimer"></div><p id="photoMsg"></p><button id="photoDone"></button></div></div>
+        <div class="share-side"><div id="photoTimer"></div><p id="photoMsg"></p><p id="photoAi" hidden></p>
+        <button id="photoDone"></button></div></div>
     </div>
 
     <footer id="hint"></footer>
@@ -83,9 +84,9 @@
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261030q"></script>
+  <script src="config.js?v=20261030s"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261030q"></script>
+  <script type="module" src="app.js?v=20261030s"></script>
 </body>
 </html>

@@ -49,6 +49,21 @@
 - **WhatsApp 社群**（后台「合照」）：填了社群邀请链接，顾客扫码后先看到模糊的照片和「加入 WhatsApp 社群」按钮，
   点了（或点「我已经加入了」）才显示照片，可以保存或直接分享。WhatsApp 不会告诉我们顾客有没有真的加入，所以只能做到「点了加入才给照片」。
 
+## AI 合照（加购配套）
+拍完照后，服务器请 Google Gemini 把「AI 合照模版」里的示范人物换成顾客（约 10–20 秒）。互动屏上的照片和顾客扫码的页面都会自动换成 AI 版；生成失败或当天上限到了，就照常给普通合照。
+- **平台管理员**（后台「平台」）：开通、每日上限、模型。标准 Nano Banana 2 每张约 US$0.07，高级 Pro 约 US$0.14（最像本人）。
+- **店主**（后台「设置 → 合照」，开通后才看得到）：风格（写实 / 卡通）和模版。模版是一张竖版示范合照：角色 + 一个示范人物，内置 `frames/ai-premo-studio.webp`。
+- 后台「数据」多一栏「AI 合照」，可以按张数跟商家收费。
+- 程序在 `supabase/functions/ai-photo/index.ts`，Gemini API key 只放在 Supabase 的 Secrets（`GEMINI_API_KEY`），不会出现在网页里。
+- 本机试样张：key 放 `.env.local`（`GEMINI_API_KEY=...`，不会上传），用 `samples/ai_template.py`。
+
+### 第一次开通 AI 合照（线上）
+1. SQL Editor 执行 `supabase/migrations/20261030400000_ai_generate.sql`。
+2. Supabase → **Edge Functions** → Deploy a new function → Via Editor，名字填 `ai-photo`，贴上 `supabase/functions/ai-photo/index.ts` 的内容，Deploy。
+3. 打开这个函数的设定，关掉 **Verify JWT**（互动屏用设备密钥验证，不是登录用户）。
+4. Edge Functions → **Secrets** 新增 `GEMINI_API_KEY`。
+5. 后台「平台」选店铺 → 勾「AI 合照」、设每日上限和模型 → 保存。
+
 ## 放到闺蜜机上
 1. 设备安装 **Fully Kiosk Browser**，起始网址设为该店的专属网址。
 2. 设置开机自动启动、全屏锁定、允许摄像头、允许自动播放声音、屏幕常亮。（直接用 Chrome 的话，点左下角「全屏」隐藏网址栏。）

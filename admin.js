@@ -90,7 +90,7 @@ async function boot(session) {
 }
 
 // 设备密钥不在这里读（员工没有权限看），店主要用时才用 store_device_key 取
-const STORE_COLS = "id, config, active, rental_until, ai_photo, ai_photo_daily";
+const STORE_COLS = "id, config, active, rental_until, ai_photo, ai_photo_daily, ai_photo_model";
 async function loadStores(selectId) {
   let { data, error } = await sb.from("stores").select(STORE_COLS).order("id");
   if (error) ({ data, error } = await sb.from("stores").select("*").order("id"));   // 数据库还没更新到新版时的退路
@@ -188,15 +188,17 @@ async function loadStats() {
   if (error) return toast(error.message);
   const sum = (k) => data.reduce((s, r) => s + Number(r[k]), 0);
   const visits = sum("visits"), plays = sum("plays"), codes = sum("codes"), redeemed = sum("redeemed");
+  const showAi = cur.ai_photo || sum("ai") > 0;   // 开通过 AI 合照才显示这一栏（旧版数据库没有 ai 栏）
   const pct = (a, b) => (b ? Math.round((a / b) * 100) + "%" : "—");
   $("statsTotals").replaceChildren(
     ...[["到访 Visitors", visits], ["参与猜拳 Played", plays, pct(plays, visits)], ["发出领奖码 Codes", codes],
-        ["已核销 Redeemed", redeemed, pct(redeemed, codes)]]
+        ["已核销 Redeemed", redeemed, pct(redeemed, codes)], showAi && ["✨ AI 合照 AI photos", sum("ai") || 0]].filter(Boolean)
       .map(([label, n, sub]) => h("div", { class: "tile" }, h("small", {}, label), h("b", {}, n), sub ? h("small", {}, sub) : null)));
-  const cols = [["day", "日期 Date"], ["visits", "到访"], ["plays", "猜拳"], ["wins", "赢"], ["loses", "输"], ["codes", "领奖码"], ["redeemed", "核销"]];
+  const cols = [["day", "日期 Date"], ["visits", "到访"], ["plays", "猜拳"], ["wins", "赢"], ["loses", "输"], ["codes", "领奖码"], ["redeemed", "核销"],
+    showAi && ["ai", "AI 合照"]].filter(Boolean);
   $("statsTable").replaceChildren(h("table", {},
     h("tr", {}, cols.map(([k, l]) => h("th", { class: k === "day" ? "" : "num" }, l))),
-    data.map((r) => h("tr", {}, cols.map(([k]) => h("td", { class: k === "day" ? "" : "num" }, r[k]))))));
+    data.map((r) => h("tr", {}, cols.map(([k]) => h("td", { class: k === "day" ? "" : "num" }, r[k] ?? 0))))));
 }
 
 // ---------- 设置 ----------
@@ -226,6 +228,9 @@ const SOUND_SETS = [
 const tplUrl = (id) => `sounds/${id}.mp3`;
 // 拍照背景框模版：放在网站的 frames/ 里，中间镜头位置是透明的
 const FRAME_TEMPLATES = [["frames/premo-studio.webp", "PREMO Studio 花艺摄影棚"]];
+// AI 合照模版：一张示范合照（角色 + 一个示范人物），AI 会把示范人物换成顾客
+const AI_TEMPLATES = [["frames/ai-premo-studio.webp", "PREMO Studio 熊熊自拍"]];
+const AI_STYLES = [["real", "写实：像本人，稍微美化 Realistic"], ["cartoon", "卡通：3D 动画风 Cartoon"]];
 const WHATSAPP_LINK = /^https:\/\/(chat\.whatsapp\.com|wa\.me|(www\.)?whatsapp\.com)\//;
 const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm", png: "image/png", webp: "image/webp" };
 
@@ -304,7 +309,7 @@ function renderSettings() {
       if (u) set(u);
     } });
     const row = h("div", { class: "media-row" }, h("span", {}, label), url, h("span", { class: "row-btns" }, pick,
-      audio && h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听"),
+      audio ? h("button", { type: "button", class: "ghost small", onclick: () => preview(url.value.trim()) }, "▶ 试听") : null,
       extra, h("button", { type: "button", class: "ghost small", onclick: () => file.click() }, "上传 Upload"), file));
     row.set = set;
     return row;
@@ -316,6 +321,14 @@ function renderSettings() {
   const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
     "audio/*,.mp3,.m4a,.aac,.wav,.ogg", "（空 = 不播 / none）", SOUND_TEMPLATES[k].map(([id, l]) => [tplUrl(id), l])));
   const frameRow = assetRow("photoFrame", "拍照背景框", val(["photoFrame"]), "image/png,image/webp", "（空 = 普通拍照画面）", FRAME_TEMPLATES);
+  // AI 合照：平台开通了才可以选风格和模版
+  const aiPart = cur.ai_photo ? [
+    h("h3", {}, "✨ AI 合照 AI photo"),
+    h("p", { class: "hint" }, `拍完照后 AI 会把模版里的示范人物换成顾客（约 10–20 秒），互动屏和顾客扫码的页面都会自动换成 AI 版；生成失败就给普通合照。今天最多 ${cur.ai_photo_daily} 张。模版是一张竖版示范合照：角色 + 一个示范人物，最好 9:16。`),
+    h("label", {}, "风格 Style", h("select", { name: "aiStyle" },
+      AI_STYLES.map(([v, l]) => h("option", { value: v, selected: (c.aiStyle || "real") === v }, l)))),
+    assetRow("aiTemplate", "AI 合照模版", val(["aiTemplate"]), "image/png,image/webp,image/jpeg", "（空 = PREMO Studio 熊熊自拍）", AI_TEMPLATES),
+  ] : h("p", { class: "hint" }, "✨ AI 合照：未开通（加购配套，请联系我们）");
   const applySet = (set) => {
     SOUNDS.forEach(([k], i) => soundRows[i].set(tplUrl(set[k])));
     toast("已套用，记得保存 Applied — remember to Save");
@@ -339,8 +352,8 @@ function renderSettings() {
       h("label", {}, "招揽间隔（秒）同一段时间最多招呼一次 Min. seconds between call-outs",
         inp("attractGap", c.attractGap ?? 30, { type: "number", min: 10, max: 600 })),
       h("p", { class: "hint" }, cur.ai_photo
-        ? `✨ AI 卡通合照：已开通（每日最多 ${cur.ai_photo_daily} 张）`
-        : "✨ AI 卡通合照：未开通（加购配套，请联系我们）"))),
+        ? `✨ AI 合照：已开通（每日最多 ${cur.ai_photo_daily} 张，在下面「合照」选风格）`
+        : "✨ AI 合照：未开通（加购配套，请联系我们）"))),
     ...lineSets,
     h("fieldset", {}, h("legend", {}, "奖品 Prizes（赢了按权重抽；每日库存留空 = 不限）"),
       h("div", { class: "table-wrap" }, h("table", {},
@@ -365,7 +378,8 @@ function renderSettings() {
       h("p", { class: "hint" }, "「拍照背景框」是拍照时整个屏幕的画面：上传一张竖版 PNG / WebP（建议 1080×1920），中间放镜头画面的地方要挖空（透明），镜头画面会自动放进挖空的地方，照片也会连背景框一起保存。留空就是普通拍照画面。"),
       frameRow,
       h("label", {}, "WhatsApp 社群链接（填了的话，顾客扫码后要先加入社群才看得到照片）WhatsApp community link",
-        inp("whatsapp", val(["whatsapp"]), { type: "url", placeholder: "https://chat.whatsapp.com/…" }))),
+        inp("whatsapp", val(["whatsapp"]), { type: "url", placeholder: "https://chat.whatsapp.com/…" })),
+      aiPart),
     h("fieldset", {}, h("legend", {}, "声音 Sounds"),
       h("div", { class: "row" }, "一键套用整套 Apply a set：",
         SOUND_SETS.map(([label, set]) => h("button", { type: "button", class: "ghost small", onclick: () => applySet(set) }, label))),
@@ -391,6 +405,7 @@ async function saveSettings(base, form, prizeBody) {
   c.photoFrame = f("photoFrame");
   c.whatsapp = f("whatsapp");
   if (c.whatsapp && !WHATSAPP_LINK.test(c.whatsapp)) return toast("WhatsApp 链接要以 https://chat.whatsapp.com/ 开头 Invalid WhatsApp link", 4000);
+  if (form.elements.aiStyle) { c.aiStyle = f("aiStyle"); c.aiTemplate = f("aiTemplate"); }   // 没开通时不显示，保留原本的设置
   c.attract = form.elements.attract.checked;
   c.attractGap = Math.min(600, Math.max(10, parseInt(f("attractGap")) || 30));
   c.lines = {};
@@ -494,18 +509,20 @@ function renderPlatform() {
       const status = !s.active ? ["bad", "停用 Off"] : expired ? ["bad", "已到期 Expired"] : ["ok", "运行中 On"];
       return h("tr", {}, h("td", {}, s.id), h("td", {}, tr(s.config.storeName)),
         h("td", {}, h("span", { class: "tag " + status[0] }, status[1])), h("td", {}, s.rental_until || "—"),
-        h("td", {}, s.ai_photo ? h("span", { class: "tag ok" }, `✨ ${s.ai_photo_daily}/天`) : "—"),
+        h("td", {}, s.ai_photo ? h("span", { class: "tag ok" }, `✨ ${s.ai_photo_daily}/天${s.ai_photo_model === "pro" ? " · Pro" : ""}`) : "—"),
         h("td", {}, h("button", { class: "ghost small", onclick: () => { $("storeSel").value = s.id; selectStore(s.id); } }, "选择 Select")));
     })));
   if (cur) {
     $("rentActive").checked = cur.active; $("rentUntil").value = cur.rental_until || "";
     $("aiOn").checked = !!cur.ai_photo; $("aiDaily").value = cur.ai_photo_daily ?? 100;
+    $("aiModel").value = cur.ai_photo_model || "standard";
   }
 }
 $("addonForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!cur) return;
-  const { error } = await sb.rpc("admin_set_ai_photo", { p_id: cur.id, p_on: $("aiOn").checked, p_daily: parseInt($("aiDaily").value) || 0 });
+  const { error } = await sb.rpc("admin_set_ai_photo", { p_id: cur.id, p_on: $("aiOn").checked, p_daily: parseInt($("aiDaily").value) || 0,
+    p_model: $("aiModel").value });
   if (error) return toast(error.message);
   toast("已保存 Saved"); await loadStores(cur.id);
 });

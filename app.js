@@ -23,6 +23,7 @@ let personDetector = null;     // 认远处的人（招揽路人用），启动�
 let attracting = false, nextAttract = 0;   // 正在招揽 / 下次最早什么时候可以再招揽
 let passHistory = [], passHits = 0, lastPassCheck = 0, people = 0;
 let frame = null, frameSrc = "";   // 拍照背景框：{ img, ar, x, y, w, h }（窗口位置是整张图的比例）
+let aiOn = false, photoSeq = 0;   // 开通了 AI 合照（加购配套）/ 第几次拍照（旧的 AI 结果不会盖到新照片上）
 const mediaCache = {};        // 角色素材：网址 → 已下载的 blob 网址（下载完之前先直接用原网址）
 // 声音：先建好 Web Audio（静音状态），点了「启动」才开始出声
 const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
@@ -141,7 +142,7 @@ async function fetchStore() {
   if (backendOn) {
     const r = await rpc("kiosk_config", { p_store: storeId });
     if (!r) return { missing: true };
-    return { cfg: r.config, active: r.active };
+    return { cfg: r.config, active: r.active, ai: !!r.ai };
   }
   const res = await fetch(`stores/${encodeURIComponent(storeId)}.json`, { cache: "no-cache" });
   return res.ok ? { cfg: await res.json(), active: true } : { missing: true };
@@ -169,6 +170,7 @@ async function loadStore() {
     showBlocked("设备链接无效，请在后台重新复制链接<br>Invalid device link — copy it again from the admin page");
     throw new Error("invalid device key");
   }
+  aiOn = !!r.ai;
   applyStore(r.cfg);
 }
 
@@ -180,6 +182,7 @@ setInterval(async () => {
     const ok = !r.missing && r.active && (!backendOn || (await keyValid()));
     if (state !== "idle") return;   // 下载设置期间顾客开始玩了：这次先不套用，等下一次
     if (!ok) return location.reload();
+    aiOn = !!r.ai;
     if (JSON.stringify(r.cfg) !== rawCfg) { applyStore(r.cfg); toIdle(); }
   } catch (e) { console.warn("refresh failed", e); }  // 断网时继续用旧设置
 }, C.refreshMs);
@@ -459,7 +462,8 @@ async function takePhoto() {
   const cv = $("photoCanvas"), view = $("photo"), f = frame;   // f：店家设的拍照背景框
   const count = f ? $("frameCount") : $("photoCount");
   const art = f ? null : await characterArt();
-  $("photoShare").classList.add("hidden");
+  const seq = ++photoSeq;
+  $("photoShare").classList.add("hidden"); $("photoAi").hidden = true;
   view.classList.remove("hidden", "sharing");
   $("photoFrame").classList.toggle("hidden", !!f);
   $("frameView").classList.toggle("hidden", !f);
@@ -474,6 +478,7 @@ async function takePhoto() {
   await sleep(1500);
   for (const n of ["3", "2", "1"]) { count.textContent = n; say(n); await sleep(1000); }
   count.textContent = ""; live = false;
+  const raw = aiOn && backendOn ? camShot() : null;   // 给 AI 用的原始镜头画面
   // 存下来的照片不镜像，招牌和衣服上的字才是正的
   if (f) {
     composeFramed(cv, f);
@@ -490,6 +495,7 @@ async function takePhoto() {
     const qr = qrcode(0, "M"); qr.addData(new URL(`photo.html?id=${id}`, location.href).href); qr.make();
     qrBox.innerHTML = qr.createImgTag(6, 8);
     msg.textContent = S.whatsapp ? U().photoScanJoin : U().photoScan;
+    if (raw) aiPhoto(id, raw, cv, seq);
   } catch (e) { console.warn("photo upload failed", e); msg.textContent = U().photoFail; }
   $("photoDone").textContent = U().done;
   $("photoShare").classList.remove("hidden"); view.classList.add("sharing");
@@ -498,6 +504,46 @@ async function takePhoto() {
   $("photoDone").onclick = t.stop;
   await t.done;
   view.classList.add("hidden");
+}
+
+// AI 合照（加购配套）：服务器在背景生成（约 10–20 秒），好了就换掉屏幕上的照片。
+// 顾客扫码的页面自己也会换成 AI 版，所以这边关掉了也没关系
+async function aiPhoto(id, raw, cv, seq) {
+  const note = $("photoAi"), current = () => seq === photoSeq && !$("photo").classList.contains("hidden");
+  try {
+    const res = await fetch(`${C.backend.url}/functions/v1/ai-photo`, {
+      method: "POST", headers: { apikey: C.backend.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ store: storeId, key: deviceKey, photo: id, image: raw }),
+    });
+    const r = await res.json();
+    if (!r.ok) return console.info("ai photo skipped", r.reason);   // 没开通 / 今天的上限到了 → 普通合照
+  } catch (e) { return console.warn("ai photo failed", e); }
+  if (!current()) return;
+  note.textContent = U().aiMaking; note.hidden = false;
+  for (const end = Date.now() + 90000; Date.now() < end && current();) {
+    await sleep(2500);
+    const a = await rpc("photo_ai", { p_id: id }).catch(() => null);
+    if (a?.status === "done") {
+      const img = new Image();
+      img.src = `data:${a.mime};base64,${a.data}`;
+      try { await img.decode(); } catch { break; }
+      if (!current()) return;
+      cv.width = img.naturalWidth; cv.height = img.naturalHeight; cv.getContext("2d").drawImage(img, 0, 0);
+      $("photo").classList.add("flash"); setTimeout(() => $("photo").classList.remove("flash"), 500);
+      note.textContent = U().aiDone;
+      return;
+    }
+    if (a?.status !== "pending") break;
+  }
+  if (current()) note.hidden = true;
+}
+
+// 镜头原始画面（不加背景框、不镜像），最长边 1024，JPEG base64
+function camShot() {
+  const k = Math.min(1, 1024 / Math.max(cam.videoWidth, cam.videoHeight));
+  const c = Object.assign(document.createElement("canvas"), { width: Math.round(cam.videoWidth * k), height: Math.round(cam.videoHeight * k) });
+  c.getContext("2d").drawImage(cam, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.85).split(",")[1];
 }
 
 // 照片里的角色：上传的视频/动图取当前画面；内置卡通转成图片。素材不允许跨域导出时就不画角色

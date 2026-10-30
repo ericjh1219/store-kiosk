@@ -412,3 +412,7 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# AI 合照：互动屏用设备密钥验证（在函数里检查），不是登录用户，所以不验证 JWT
+[functions.ai-photo]
+verify_jwt = false

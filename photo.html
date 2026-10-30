@@ -25,12 +25,17 @@
       background: var(--card); color: var(--text); box-shadow: inset 0 0 0 2px var(--brand); cursor: pointer; }
     button.link { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; font-size: 14px;
       padding: 8px; cursor: pointer; }
+    a.link { display: inline-block; color: var(--muted); font-size: 14px; padding: 8px; }
     #teaser { filter: blur(14px) saturate(1.2); transform: scale(.96); max-height: 44vh; object-fit: cover; }   /* 按钮要一眼看到，不用往下滑 */
+    #aiNote { color: var(--brand); font-weight: 600; font-size: 15px; margin: 0 0 12px; animation: pulse 1.6s ease-in-out infinite; }
+    #aiNote.done { animation: none; }
+    @keyframes pulse { 50% { opacity: .5; } }
   </style>
 </head>
 <body>
   <main>
     <h1 id="title">我们的合照 · Our photo</h1>
+    <p id="aiNote" hidden>✨ AI 合照制作中，马上就好… Making your AI photo…</p>
     <!-- 店家设了 WhatsApp 社群：先加入，再看照片 -->
     <section id="join" hidden>
       <img id="teaser" alt="">
@@ -44,11 +49,12 @@
       <a id="save" class="btn" download="photo.jpg">保存照片 Save photo</a>
       <button id="share" class="btn" type="button" hidden>分享给朋友 · Share</button>
       <p>如果按钮没反应，请长按照片保存。<br>If the button doesn't work, press and hold the photo to save it.</p>
+      <a id="orig" class="link" hidden>下载原图 · Original photo</a>
     </section>
     <p id="msg">加载中… Loading…</p>
     <p>照片 24 小时后自动删除。Photos are deleted after 24 hours.</p>
   </main>
-  <script src="config.js?v=20261030q"></script>
+  <script src="config.js?v=20261030s"></script>
   <script src="config.local.js" onerror="0"></script>
   <script>
     (async () => {
@@ -69,24 +75,44 @@
         try { info = await call("photo_page"); }
         catch (e) { if (e !== 404) throw e; info = { data: await call("get_photo") }; }   // 数据库还没更新到新版时的退路
         if (!info?.data) throw new Error("not found");
-        const url = "data:image/jpeg;base64," + info.data, name = `photo-${id.slice(0, 8)}.jpg`;
+        const short = id.slice(0, 8);
+        const original = { url: "data:image/jpeg;base64," + info.data, name: `photo-${short}.jpg`, type: "image/jpeg" };
+        let pic = original, opened = false;   // pic：现在显示的照片（AI 版好了就换掉）
         const names = info.store || {};
         const store = (navigator.language.startsWith("zh") && names.zh) || names.en || names.zh || "";
         document.querySelectorAll(".store").forEach((b) => (b.textContent = store));
         if (store) document.title = `${store} · 合照 Photo`;
         msg.hidden = true;
 
-        const showPhoto = async () => {
-          $("join").hidden = true;
-          $("pic").src = url; $("save").href = url; $("save").download = name;
-          $("photoBox").hidden = false;
+        const render = async () => {
+          $("teaser").src = pic.url;
+          if (!opened) return;
+          $("pic").src = pic.url; $("save").href = pic.url; $("save").download = pic.name;
+          $("orig").hidden = pic === original; $("orig").href = original.url; $("orig").download = original.name;
           // 手机支持的话，直接分享照片到 WhatsApp / Instagram 等
-          const file = new File([await (await fetch(url)).blob()], name, { type: "image/jpeg" });
-          if (navigator.canShare?.({ files: [file] })) {
-            $("share").hidden = false;
-            $("share").onclick = () => navigator.share({ files: [file], title: store }).catch(() => {});
-          }
+          const file = new File([await (await fetch(pic.url)).blob()], pic.name, { type: pic.type });
+          $("share").hidden = !navigator.canShare?.({ files: [file] });
+          $("share").onclick = () => navigator.share({ files: [file], title: store }).catch(() => {});
         };
+        const showPhoto = () => { $("join").hidden = true; $("photoBox").hidden = false; opened = true; render(); };
+
+        // AI 合照（店家开通才有）：生成中先给普通合照，好了自动换成 AI 版（约 10–20 秒）
+        if (info.ai === "pending" || info.ai === "done") (async () => {
+          const note = $("aiNote");
+          note.hidden = false;
+          for (let i = 0; i < 40; i++) {
+            const a = await call("photo_ai").catch(() => null);
+            if (a?.status === "done") {
+              pic = { url: `data:${a.mime};base64,${a.data}`, name: `ai-photo-${short}.${a.mime === "image/jpeg" ? "jpg" : a.mime.split("/")[1]}`, type: a.mime };
+              note.textContent = "✨ AI 合照好了！Your AI photo is ready!"; note.classList.add("done");
+              return render();
+            }
+            if (a && a.status !== "pending") break;   // 失败：留着普通合照
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+          note.hidden = true;
+        })();
+
         const link = WA.test(info.whatsapp || "") ? info.whatsapp : "";
         const seen = "joined:" + link;
         let joined = false;
@@ -94,7 +120,7 @@
         if (!link || joined) return showPhoto();
 
         // 点了加入就记下来：WhatsApp 打开后回到这一页，照片已经出来了（WhatsApp 不会通知我们有没有真的加入）
-        $("teaser").src = url;
+        render();
         $("join").hidden = false;
         $("joinBtn").href = link;
         const unlock = () => { try { localStorage.setItem(seen, "1"); } catch {} setTimeout(showPhoto, 800); };

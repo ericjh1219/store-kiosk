@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>商家后台 Merchant Admin</title>
-  <link rel="stylesheet" href="admin.css?v=20261030q">
+  <link rel="stylesheet" href="admin.css?v=20261030s">
 </head>
 <body>
   <header class="top">
@@ -92,11 +92,13 @@
       </form>
       <h3>加购配套 Add-ons（选中的店铺）</h3>
       <form id="addonForm" class="row">
-        <label class="inline"><input type="checkbox" id="aiOn"> ✨ AI 卡通合照 AI photo</label>
+        <label class="inline"><input type="checkbox" id="aiOn"> ✨ AI 合照 AI photo</label>
         <label class="inline">每日上限 Daily cap <input type="number" id="aiDaily" min="0" max="10000" step="10" style="width:100px"> 张</label>
+        <label class="inline">模型 Model <select id="aiModel">
+          <option value="standard">标准 Nano Banana 2</option><option value="pro">高级 Pro（最像本人）</option></select></label>
         <button type="submit">保存 Save</button>
       </form>
-      <p class="hint">AI 合照每张约 US$0.04（约 RM0.18）。每日上限到了，当天就只给普通合照，不会多花钱。商家看得到状态，但自己开不了。</p>
+      <p class="hint">AI 合照每张：标准约 US$0.07（约 RM0.30），高级 Pro 约 US$0.14（约 RM0.60）。每日上限到了，当天就只给普通合照，不会多花钱。商家可以选风格（写实 / 卡通）和模版，但开通、上限和模型只有你能改。</p>
       <h3>新增店铺 New store</h3>
       <form id="newStoreForm" class="grid2">
         <label>店铺ID（英文小写和-）Store ID <input id="newId" pattern="[a-z0-9][a-z0-9\-]{1,39}" placeholder="ahmad-nasi-kandar" required></label>
@@ -112,9 +114,9 @@
   </main>
 
   <div id="toast" hidden></div>
-  <script src="config.js?v=20261030q"></script>
+  <script src="config.js?v=20261030s"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="admin.js?v=20261030q"></script>
+  <script type="module" src="admin.js?v=20261030s"></script>
 </body>
 </html>
