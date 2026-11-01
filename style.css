@@ -46,9 +46,10 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #prizeCode { font-size: 3vh; letter-spacing: .5vh; background: var(--primary); color: var(--accent); display: inline-block;
   padding: .6vh 2vh; border-radius: 1vh; margin-bottom: 1vh; }
 
-/* 待机提示做成按钮样子，离开屏幕底部一段距离，轻轻呼吸提醒顾客点 */
+/* 待机提示做成按钮样子，放在屏幕正中间，轻轻呼吸提醒顾客点（呼吸动画用了 transform，所以用 inset + margin auto 置中） */
 #hint { font-size: 3.2vh; font-weight: 700; color: var(--primary); background: var(--accent); text-align: center;
-  max-width: 86vw; padding: 1.4vh 4.5vh; border-radius: 5vh; margin-bottom: 8vh; cursor: pointer;
+  position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; z-index: 2;
+  max-width: 86vw; padding: 1.4vh 4.5vh; border-radius: 5vh; cursor: pointer;
   box-shadow: 0 1vh 3vh #0008, 0 0 0 .5vh #ffffff33; animation: breathe 2.4s ease-in-out infinite; }
 #hint:empty { display: none; }
 #hint.again:not(:empty) { display: flex; align-items: center; gap: 1.2vh; }   /* 再玩一次的时候字清空了，按钮要跟着收起来 */
