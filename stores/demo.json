@@ -39,12 +39,6 @@
   "consolation": {"name": {"zh": "9折优惠券", "en": "10% Off Coupon"}, "emoji": "🎟️"},
   "theme": {"primary": "#4a160f", "accent": "#f5d68a", "bg": "#6b2d1e"},
   "character": {
-    "skin": {
-      "outfit": "#e74c3c",
-      "outfitDark": "#c0392b",
-      "hair": "#2c2c2c",
-      "skin": "#ffe0bd"
-    },
     "media": {
       "idle": "",
       "wave": "",

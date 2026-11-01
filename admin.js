@@ -320,7 +320,7 @@ function renderSettings() {
     return row;
   };
   const mediaRows = MEDIA_STATES.map(([state, label]) => assetRow(`media.${state}`, label, val(["character", "media", state]),
-    "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 内置卡通 / built-in）", null,
+    "video/mp4,video/webm,image/gif,image/webp,image/png", "（空 = 不显示 / none）", null,
     h("label", { class: "inline mute", title: "这段动画播放时不出声 Mute this clip" },
       h("input", { type: "checkbox", name: `mute.${state}`, checked: !!val(["character", "mute", state], false) }), "🔇 关原声")));
   const soundRows = SOUNDS.map(([k, label]) => assetRow(`sounds.${k}`, label, val(["sounds", k]),
@@ -374,11 +374,8 @@ function renderSettings() {
       colorInp("theme.primary", c.theme.primary || "#4a160f"), colorInp("theme.accent", c.theme.accent || "#f5d68a"),
       colorInp("theme.bg", c.theme.bg || "#6b2d1e"))),
     h("fieldset", {}, h("legend", {}, "角色动画 Character"),
-      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB），建议 1080×1920。上传后角色会全屏播放，不显示店名招牌。视频本身的声音会播放，勾「关原声」就不出声。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的动画（建议 1–3 秒，整段播一次再出结果），没上传就只显示图标。没有上传就用内置卡通角色，可改下面的颜色。"),
-      mediaRows,
-      h("h3", {}, "内置卡通颜色 Built-in character colors"),
-      h("div", { class: "grid4" }, ["outfit", "outfitDark", "hair", "skin"].map((k) =>
-        colorInp(`skin.${k}`, val(["character", "skin", k], { outfit: "#e74c3c", outfitDark: "#c0392b", hair: "#2c2c2c", skin: "#ffe0bd" }[k]))))),
+      h("p", { class: "hint" }, "上传竖屏 mp4/webm 视频或 gif/webp 动图（最大 20MB），建议 1080×1920。上传后角色会全屏播放，不显示店名招牌。视频本身的声音会播放，勾「关原声」就不出声。只上传「待机」也可以。「出石头 / 剪刀 / 布」是角色出拳的动画（建议 1–3 秒，整段播一次再出结果），没上传就只显示图标。没有上传就不显示角色。"),
+      mediaRows),
     h("fieldset", {}, h("legend", {}, "合照 Photo"),
       h("p", { class: "hint" }, "「拍照背景框」是拍照时整个屏幕的画面：上传一张竖版 PNG / WebP（建议 1080×1920），中间放镜头画面的地方要挖空（透明），镜头画面会自动放进挖空的地方，照片也会连背景框一起保存。留空就是普通拍照画面。"),
       frameRow,
@@ -433,7 +430,6 @@ async function saveSettings(base, form, prizeBody) {
                     emoji: f("consolation.emoji") || "🎟️" };
   c.theme = { primary: f("theme.primary"), accent: f("theme.accent"), bg: f("theme.bg") };
   c.character = {
-    skin: Object.fromEntries(["outfit", "outfitDark", "hair", "skin"].map((k) => [k, f(`skin.${k}`)])),
     media: Object.fromEntries(MEDIA_STATES.map(([s]) => [s, f(`media.${s}`)])),
     mute: Object.fromEntries(MEDIA_STATES.map(([s]) => [s, form.elements[`mute.${s}`].checked])),
   };
@@ -565,7 +561,7 @@ function newStoreTemplate(name, languages) {
     consolation: { name: { zh: "9折优惠券", en: "10% Off Coupon" }, emoji: "🎟️" },
     codeValidDays: 7, timezone: "Asia/Kuala_Lumpur",
     theme: { primary: "#4a160f", accent: "#f5d68a", bg: "#6b2d1e" },
-    character: { skin: {}, media: { idle: "", wave: "", happy: "", sad: "" } },
+    character: { media: { idle: "", wave: "", happy: "", sad: "" } },
   };
 }
 

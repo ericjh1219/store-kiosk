@@ -10,18 +10,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
   font-size: 5vh; letter-spacing: 1vh; color: var(--accent); background: var(--primary); }
 
 #character { cursor: pointer; flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; min-height: 0; }
-#mascot, #charVideo, #charImg { height: 100%; max-height: 55vh; max-width: 90vw; }
-#charVideo, #charImg { object-fit: contain; }
-#mascot .body { animation: bob 2.4s ease-in-out infinite; transform-origin: 100px 230px; }
-#mascot .eyes { animation: blink 4s infinite; transform-origin: 100px 112px; }
-#mascot .arm-right { transform-origin: 128px 192px; transition: transform .3s; }
-#stage.wave #mascot .arm-right { animation: wave .5s ease-in-out infinite alternate; }
-#stage.happy #mascot .body { animation: jump .5s ease-in-out infinite; }
-#stage.sad #mascot .mouth { d: path("M84 150 Q100 136 116 150"); }
-@keyframes bob { 50% { transform: translateY(-6px); } }
-@keyframes jump { 50% { transform: translateY(-20px); } }
-@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
-@keyframes wave { from { transform: rotate(-20deg); } to { transform: rotate(-70deg); } }
+#charVideo, #charImg { height: 100%; max-height: 55vh; max-width: 90vw; object-fit: contain; }
 
 #bubble { position: absolute; top: 13vh; left: 50%; transform: translateX(-50%); width: max-content; max-width: 88vw; z-index: 2;
   background: #fff8e7; color: var(--primary); font-size: 3.6vh; padding: 1.6vh 3vh; border-radius: 3vh;
@@ -68,7 +57,7 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 #stage.full #bubble { top: 9vh; }
 #stage.full #game { text-shadow: 0 0 1vh #000, 0 .3vh .8vh #000; }
 
-#startBtn { position: absolute; inset: 0; background: #000c; color: #fff; font-size: 4vh; border: 0; }
+#startBtn { position: absolute; inset: 0; z-index: 5; background: #000c; color: #fff; font-size: 4vh; border: 0; }
 .hidden { display: none !important; }
 
 #previewTag { position: absolute; bottom: 1vh; right: 2vw; z-index: 4; pointer-events: none; font-size: 1.8vh;
@@ -97,9 +86,6 @@ html, body { height: 100%; background: #1a0f0a; color: #fff; overflow: hidden;
 /* 防乱按：不能缩放、不能选字、长按不弹菜单 */
 html { touch-action: none; }
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-#mascot { --outfit: #e74c3c; --outfit-dark: #c0392b; --hair: #2c2c2c; --skin: #ffe0bd; }
-#mascot .outfit { fill: var(--outfit); } #mascot .outfit-dark { fill: var(--outfit-dark); }
-#mascot .hair { fill: var(--hair); } #mascot .skin { fill: var(--skin); }
 
 /* 合照 */
 #photoAsk { position: absolute; bottom: 12vh; left: 0; right: 0; z-index: 3; display: flex; gap: 3vw; justify-content: center; }

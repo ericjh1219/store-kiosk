@@ -193,7 +193,6 @@ function applyStore(cfg) {
   S = structuredClone(cfg);
   S.languages ||= Object.keys(S.lines);
   for (const [k, v] of Object.entries(S.theme || {})) document.documentElement.style.setProperty("--" + k, v);
-  applySkin();
   preloadMedia();
   preloadSounds();
   loadFrame(S.photoFrame || "");
@@ -230,7 +229,7 @@ async function start() {
     sb.textContent = U().startFail + e.message;
     return;
   }
-  sb.remove();
+  sb.remove(); hint.classList.remove("hidden");   // 按钮在屏幕中间，启动前先收起来，不挡「点击启动」
   say(""); // 解锁语音
   toIdle();
   requestAnimationFrame(loop);
@@ -546,26 +545,13 @@ function camShot() {
   return c.toDataURL("image/jpeg", 0.85).split(",")[1];
 }
 
-// 照片里的角色：上传的视频/动图取当前画面；内置卡通转成图片。素材不允许跨域导出时就不画角色
+// 照片里的角色：上传的视频/动图取当前画面；没有上传角色，或素材不允许跨域导出时就不画角色
 async function characterArt() {
   const v = $("charVideo"), img = $("charImg");
   let el, w, h;
   if (!v.hidden && v.videoWidth) [el, w, h] = [v, v.videoWidth, v.videoHeight];
   else if (!img.hidden && img.naturalWidth) [el, w, h] = [img, img.naturalWidth, img.naturalHeight];
-  else {
-    const live = $("mascot"), svg = live.cloneNode(true);
-    const src = live.querySelectorAll("*"), dst = svg.querySelectorAll("*");
-    dst.forEach((n, i) => {
-      if (/outfit|hair|skin/.test(n.getAttribute("class") || "")) n.setAttribute("fill", getComputedStyle(src[i]).fill);
-      n.removeAttribute("class");
-    });
-    svg.removeAttribute("style"); svg.removeAttribute("id");
-    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg"); svg.setAttribute("width", 400); svg.setAttribute("height", 520);
-    el = new Image();
-    el.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
-    try { await el.decode(); } catch { return null; }
-    [w, h] = [400, 520];
-  }
+  else return null;
   try {
     const t = document.createElement("canvas").getContext("2d");
     t.drawImage(el, 0, 0, 1, 1); t.getImageData(0, 0, 1, 1);
@@ -723,13 +709,12 @@ function preloadMedia() {
   }
 }
 
-// 角色素材：mp4/webm 用 <video>，gif/webp/png 动图用 <img>；都没填就用内置卡通角色
+// 角色素材：mp4/webm 用 <video>，gif/webp/png 动图用 <img>；都没填就不显示角色
 function playVideo(name) {
   const media = S.character?.media || {};
   const key = media[name] ? name : "idle", src = media[key];
   const v = $("charVideo"), img = $("charImg");
   stage.classList.toggle("full", !!src);   // 上传的素材全屏播放，不显示店名招牌
-  $("mascot").style.display = src ? "none" : "";
   if (!src) { v.hidden = img.hidden = true; v.pause(); return; }   // 收起来的视频要暂停，不然看不到还会继续出声
   const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(src);
   v.hidden = !isVideo; img.hidden = isVideo;
@@ -756,11 +741,6 @@ async function playOnce(name, maxMs) {
   v.loop = false; v.currentTime = 0; v.play().catch(() => {});
   await Promise.race([new Promise((r) => v.addEventListener("ended", r, { once: true })), sleep(maxMs)]);
   if (v.dataset.src === src) v.loop = true;   // 等的期间已经换成别段动画（例如招揽时开始玩了），就不要动它
-}
-
-function applySkin() {
-  const map = { outfit: "--outfit", outfitDark: "--outfit-dark", hair: "--hair", skin: "--skin" };
-  for (const [k, v] of Object.entries(S.character?.skin || {})) if (map[k]) $("mascot").style.setProperty(map[k], v);
 }
 
 function say(text) {

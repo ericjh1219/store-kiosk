@@ -23,9 +23,8 @@
 3. 推送到 GitHub，大约 1 分钟后，在店里的设备上打开 `https://ericjh1219.github.io/store-kiosk/?store=ahmad-nasi-kandar`。
 
 ## 更换角色动画
-`character` 有两种用法：
-- **内置卡通角色换颜色**：改 `character.skin`（outfit 衣服、outfitDark、hair 头发、skin 肤色）。
-- **商家自己的角色**：把 4 段竖屏素材放进 `assets/`，填到 `character.media`：
+没有上传角色素材时，画面中间不显示角色，只有店名和中间的按钮。
+商家自己的角色：把 4 段竖屏素材放进 `assets/`（或在后台「设置 → 角色动画」上传），填到 `character.media`：
   ```json
   "media": { "idle": "assets/ahmad/idle.mp4", "wave": "assets/ahmad/wave.mp4",
              "happy": "assets/ahmad/happy.mp4", "sad": "assets/ahmad/sad.mp4" }

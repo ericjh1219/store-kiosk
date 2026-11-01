@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="互动屏">
-  <link rel="stylesheet" href="style.css?v=20261101a">
+  <link rel="stylesheet" href="style.css?v=20261101d">
 </head>
 <body>
   <div id="stage">
@@ -27,23 +27,6 @@
     <div id="character">
       <video id="charVideo" playsinline muted loop hidden crossorigin="anonymous"></video>
       <img id="charImg" alt="" hidden crossorigin="anonymous">
-      <svg id="mascot" viewBox="0 0 200 260" aria-hidden="true">
-        <g class="body">
-          <ellipse cx="100" cy="215" rx="58" ry="40" class="outfit-dark"/>
-          <rect x="70" y="180" width="60" height="60" rx="14" class="outfit"/>
-          <g class="arm-left"><rect x="40" y="185" width="34" height="14" rx="7" class="outfit"/></g>
-          <g class="arm-right"><rect x="126" y="185" width="34" height="14" rx="7" class="outfit"/>
-            <circle cx="163" cy="192" r="10" class="skin"/></g>
-          <circle cx="100" cy="110" r="72" class="skin"/>
-          <path d="M28 100 Q30 30 100 32 Q170 30 172 100 Q150 60 100 62 Q50 60 28 100Z" class="hair"/>
-          <circle cx="100" cy="34" r="18" class="hair"/>
-          <g class="eyes"><ellipse cx="74" cy="112" rx="8" ry="10" fill="#222"/>
-            <ellipse cx="126" cy="112" rx="8" ry="10" fill="#222"/></g>
-          <circle cx="60" cy="135" r="9" fill="#ffb3b3" opacity=".7"/>
-          <circle cx="140" cy="135" r="9" fill="#ffb3b3" opacity=".7"/>
-          <path class="mouth" d="M84 140 Q100 156 116 140" stroke="#a33" stroke-width="5" fill="none" stroke-linecap="round"/>
-        </g>
-      </svg>
     </div>
 
     <div id="bubble" class="hidden"></div>
@@ -75,7 +58,7 @@
         <button id="photoDone"></button></div></div>
     </div>
 
-    <footer id="hint"></footer>
+    <footer id="hint" class="hidden"></footer>
     <template id="tapIcon"><svg class="tap" viewBox="0 0 24 24" aria-hidden="true">
       <path class="ripple" d="M7.2 6.6a4.8 4.8 0 0 1 9.6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       <g class="finger" fill="currentColor"><rect x="10.2" y="5" width="3.6" height="11" rx="1.8"/>
@@ -84,9 +67,9 @@
     <button id="startBtn"></button>
     <div id="debug" class="hidden"><video id="cam" playsinline muted></video><pre id="dbgText"></pre></div>
   </div>
-  <script src="config.js?v=20261101a"></script>
+  <script src="config.js?v=20261101d"></script>
   <script src="config.local.js" onerror="0"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-  <script type="module" src="app.js?v=20261101a"></script>
+  <script type="module" src="app.js?v=20261101d"></script>
 </body>
 </html>

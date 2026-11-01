@@ -25,12 +25,6 @@
   "consolation": {"name": {"en": "5% Off Coupon"}, "emoji": "🎟️"},
   "theme": {"primary": "#0f3d2e", "accent": "#ffd23f", "bg": "#1f6b4f"},
   "character": {
-    "skin": {
-      "outfit": "#2e9e6b",
-      "outfitDark": "#1f6b4f",
-      "hair": "#3b2a1a",
-      "skin": "#e8b98a"
-    },
     "media": {
       "idle": "",
       "wave": "",
